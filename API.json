@@ -1,1747 +1,24 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.3",
   "info": {
-    "title": "项目管理与过程改进课程网站 API",
-    "description": "项目管理与过程改进课程网站的后端API接口文档",
+    "title": "USST SPM 课程平台 API",
+    "description": "与《项目计划.md》一致的 REST API，覆盖认证、课程、作业、出勤、讨论和统计模块。",
     "version": "1.0.0",
     "contact": {
-      "name": "开发团队",
+      "name": "SPM 开发团队",
       "email": "dev@usst.edu.cn"
     }
   },
   "servers": [
     {
-      "url": "http://localhost:8080/api",
+      "url": "http://localhost:8080/api/v1",
       "description": "开发环境"
     },
     {
-      "url": "https://api.spm.usst.edu.cn/api",
+      "url": "https://api.spm.usst.edu.cn/api/v1",
       "description": "生产环境"
     }
   ],
-  "security": [
-    {
-      "bearerAuth": []
-    }
-  ],
-  "paths": {
-    "/auth/register": {
-      "post": {
-        "tags": ["用户认证"],
-        "summary": "用户注册",
-        "description": "用户注册接口",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["username", "email", "password", "role"],
-                "properties": {
-                  "username": {
-                    "type": "string",
-                    "description": "用户名"
-                  },
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "description": "邮箱"
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 6,
-                    "description": "密码"
-                  },
-                  "role": {
-                    "type": "string",
-                    "enum": ["STUDENT", "TEACHER", "ADMIN"],
-                    "description": "用户角色"
-                  },
-                  "studentId": {
-                    "type": "string",
-                    "description": "学号（学生必填）"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "注册成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "注册成功"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "userId": {"type": "integer", "example": 1},
-                        "username": {"type": "string", "example": "张三"},
-                        "email": {"type": "string", "example": "zhangsan@example.com"},
-                        "role": {"type": "string", "example": "STUDENT"}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "请求参数错误",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/login": {
-      "post": {
-        "tags": ["用户认证"],
-        "summary": "用户登录",
-        "description": "用户登录接口",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["email", "password"],
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "description": "邮箱"
-                  },
-                  "password": {
-                    "type": "string",
-                    "description": "密码"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "登录成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "登录成功"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "token": {"type": "string", "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."},
-                        "user": {
-                          "type": "object",
-                          "properties": {
-                            "userId": {"type": "integer", "example": 1},
-                            "username": {"type": "string", "example": "张三"},
-                            "email": {"type": "string", "example": "zhangsan@example.com"},
-                            "role": {"type": "string", "example": "STUDENT"}
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "认证失败",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/user/profile": {
-      "get": {
-        "tags": ["用户管理"],
-        "summary": "获取用户信息",
-        "description": "获取当前用户信息",
-        "security": [{"bearerAuth": []}],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "userId": {"type": "integer", "example": 1},
-                        "username": {"type": "string", "example": "张三"},
-                        "email": {"type": "string", "example": "zhangsan@example.com"},
-                        "role": {"type": "string", "example": "STUDENT"},
-                        "avatar": {"type": "string", "example": "http://localhost:8080/avatar/1.jpg"},
-                        "createdAt": {"type": "string", "format": "date-time", "example": "2024-01-01T00:00:00Z"}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": ["用户管理"],
-        "summary": "更新用户信息",
-        "description": "更新当前用户信息",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "username": {"type": "string", "description": "用户名"},
-                  "avatar": {"type": "string", "description": "头像URL"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "更新成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/courses": {
-      "get": {
-        "tags": ["课程管理"],
-        "summary": "获取课程列表",
-        "description": "获取课程列表",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "description": "页码",
-            "required": false,
-            "schema": {"type": "integer", "default": 1}
-          },
-          {
-            "name": "size",
-            "in": "query",
-            "description": "每页数量",
-            "required": false,
-            "schema": {"type": "integer", "default": 10}
-          },
-          {
-            "name": "keyword",
-            "in": "query",
-            "description": "搜索关键词",
-            "required": false,
-            "schema": {"type": "string"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "courses": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "courseId": {"type": "integer", "example": 1},
-                              "courseName": {"type": "string", "example": "项目管理基础"},
-                              "description": {"type": "string", "example": "项目管理基础课程"},
-                              "teacherName": {"type": "string", "example": "李老师"},
-                              "semester": {"type": "string", "example": "2024春季"},
-                              "status": {"type": "string", "example": "ACTIVE"}
-                            }
-                          }
-                        },
-                        "total": {"type": "integer", "example": 10},
-                        "page": {"type": "integer", "example": 1},
-                        "size": {"type": "integer", "example": 10}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": ["课程管理"],
-        "summary": "创建课程",
-        "description": "创建新课程",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["courseName", "description", "semester"],
-                "properties": {
-                  "courseName": {"type": "string", "description": "课程名称"},
-                  "description": {"type": "string", "description": "课程描述"},
-                  "semester": {"type": "string", "description": "学期"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "创建成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/courses/{courseId}": {
-      "get": {
-        "tags": ["课程管理"],
-        "summary": "获取课程详情",
-        "description": "获取指定课程的详细信息",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "courseId",
-            "in": "path",
-            "required": true,
-            "description": "课程ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "courseId": {"type": "integer", "example": 1},
-                        "courseName": {"type": "string", "example": "项目管理基础"},
-                        "description": {"type": "string", "example": "项目管理基础课程"},
-                        "teacherName": {"type": "string", "example": "李老师"},
-                        "semester": {"type": "string", "example": "2024春季"},
-                        "status": {"type": "string", "example": "ACTIVE"},
-                        "announcements": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "announcementId": {"type": "integer", "example": 1},
-                              "title": {"type": "string", "example": "课程通知"},
-                              "content": {"type": "string", "example": "请按时完成作业"},
-                              "createdAt": {"type": "string", "format": "date-time", "example": "2024-01-01T00:00:00Z"}
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/questions": {
-      "get": {
-        "tags": ["题目管理"],
-        "summary": "获取题目列表",
-        "description": "获取题目列表",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "description": "页码",
-            "required": false,
-            "schema": {"type": "integer", "default": 1}
-          },
-          {
-            "name": "size",
-            "in": "query",
-            "description": "每页数量",
-            "required": false,
-            "schema": {"type": "integer", "default": 10}
-          },
-          {
-            "name": "category",
-            "in": "query",
-            "description": "题目分类",
-            "required": false,
-            "schema": {"type": "string"}
-          },
-          {
-            "name": "difficulty",
-            "in": "query",
-            "description": "难度等级",
-            "required": false,
-            "schema": {"type": "string", "enum": ["EASY", "MEDIUM", "HARD"]}
-          },
-          {
-            "name": "keyword",
-            "in": "query",
-            "description": "搜索关键词",
-            "required": false,
-            "schema": {"type": "string"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "questions": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "questionId": {"type": "integer", "example": 1},
-                              "title": {"type": "string", "example": "项目管理的五大过程组是什么？"},
-                              "type": {"type": "string", "example": "MULTIPLE_CHOICE"},
-                              "difficulty": {"type": "string", "example": "MEDIUM"},
-                              "category": {"type": "string", "example": "项目管理基础"},
-                              "options": {"type": "array", "items": {"type": "string"}},
-                              "correctAnswer": {"type": "string", "example": "A"}
-                            }
-                          }
-                        },
-                        "total": {"type": "integer", "example": 100},
-                        "page": {"type": "integer", "example": 1},
-                        "size": {"type": "integer", "example": 10}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": ["题目管理"],
-        "summary": "创建题目",
-        "description": "创建新题目",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["title", "content", "type", "difficulty", "category"],
-                "properties": {
-                  "title": {"type": "string", "description": "题目标题"},
-                  "content": {"type": "string", "description": "题目内容"},
-                  "type": {"type": "string", "enum": ["MULTIPLE_CHOICE", "FILL_BLANK", "ESSAY"], "description": "题目类型"},
-                  "difficulty": {"type": "string", "enum": ["EASY", "MEDIUM", "HARD"], "description": "难度等级"},
-                  "category": {"type": "string", "description": "题目分类"},
-                  "options": {"type": "array", "items": {"type": "string"}, "description": "选项（选择题）"},
-                  "correctAnswer": {"type": "string", "description": "正确答案"},
-                  "explanation": {"type": "string", "description": "题目解析"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "创建成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/questions/{questionId}": {
-      "get": {
-        "tags": ["题目管理"],
-        "summary": "获取题目详情",
-        "description": "获取指定题目的详细信息",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "questionId",
-            "in": "path",
-            "required": true,
-            "description": "题目ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "questionId": {"type": "integer", "example": 1},
-                        "title": {"type": "string", "example": "项目管理的五大过程组是什么？"},
-                        "content": {"type": "string", "example": "请选择项目管理的五大过程组："},
-                        "type": {"type": "string", "example": "MULTIPLE_CHOICE"},
-                        "difficulty": {"type": "string", "example": "MEDIUM"},
-                        "category": {"type": "string", "example": "项目管理基础"},
-                        "options": {
-                          "type": "array",
-                          "items": {"type": "string"},
-                          "example": ["启动、规划、执行、监控、收尾", "计划、执行、检查、行动", "需求、设计、开发、测试、部署", "分析、设计、实现、测试、维护"]
-                        },
-                        "correctAnswer": {"type": "string", "example": "A"},
-                        "explanation": {"type": "string", "example": "项目管理的五大过程组是启动、规划、执行、监控、收尾"}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/practice/start": {
-      "post": {
-        "tags": ["刷题系统"],
-        "summary": "开始练习",
-        "description": "开始新的练习",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["category", "difficulty", "questionCount"],
-                "properties": {
-                  "category": {"type": "string", "description": "题目分类"},
-                  "difficulty": {"type": "string", "enum": ["EASY", "MEDIUM", "HARD"], "description": "难度等级"},
-                  "questionCount": {"type": "integer", "description": "题目数量"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "开始成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "practiceId": {"type": "integer", "example": 1},
-                        "questions": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "questionId": {"type": "integer", "example": 1},
-                              "title": {"type": "string", "example": "项目管理的五大过程组是什么？"},
-                              "type": {"type": "string", "example": "MULTIPLE_CHOICE"},
-                              "options": {"type": "array", "items": {"type": "string"}}
-                            }
-                          }
-                        },
-                        "totalQuestions": {"type": "integer", "example": 10},
-                        "timeLimit": {"type": "integer", "example": 1800}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/practice/{practiceId}/submit": {
-      "post": {
-        "tags": ["刷题系统"],
-        "summary": "提交答案",
-        "description": "提交练习答案",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "practiceId",
-            "in": "path",
-            "required": true,
-            "description": "练习ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["answers"],
-                "properties": {
-                  "answers": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "questionId": {"type": "integer", "description": "题目ID"},
-                        "answer": {"type": "string", "description": "答案"}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "提交成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "practiceId": {"type": "integer", "example": 1},
-                        "score": {"type": "integer", "example": 85},
-                        "correctCount": {"type": "integer", "example": 8},
-                        "totalCount": {"type": "integer", "example": 10},
-                        "timeSpent": {"type": "integer", "example": 1200},
-                        "results": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "questionId": {"type": "integer", "example": 1},
-                              "userAnswer": {"type": "string", "example": "A"},
-                              "correctAnswer": {"type": "string", "example": "A"},
-                              "isCorrect": {"type": "boolean", "example": true}
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/practice/history": {
-      "get": {
-        "tags": ["刷题系统"],
-        "summary": "获取练习历史",
-        "description": "获取用户练习历史记录",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "description": "页码",
-            "required": false,
-            "schema": {"type": "integer", "default": 1}
-          },
-          {
-            "name": "size",
-            "in": "query",
-            "description": "每页数量",
-            "required": false,
-            "schema": {"type": "integer", "default": 10}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/assignments": {
-      "get": {
-        "tags": ["作业管理"],
-        "summary": "获取作业列表",
-        "description": "获取作业列表",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "courseId",
-            "in": "query",
-            "description": "课程ID",
-            "required": false,
-            "schema": {"type": "integer"}
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "description": "作业状态",
-            "required": false,
-            "schema": {"type": "string", "enum": ["ACTIVE", "CLOSED", "DRAFT"]}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "assignments": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "assignmentId": {"type": "integer", "example": 1},
-                              "title": {"type": "string", "example": "项目管理案例分析"},
-                              "description": {"type": "string", "example": "分析一个实际项目案例"},
-                              "courseId": {"type": "integer", "example": 1},
-                              "dueDate": {"type": "string", "format": "date-time", "example": "2024-01-15T23:59:59Z"},
-                              "status": {"type": "string", "example": "ACTIVE"},
-                              "submitted": {"type": "boolean", "example": false}
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/assignments/{assignmentId}": {
-      "get": {
-        "tags": ["作业管理"],
-        "summary": "获取作业详情",
-        "description": "获取指定作业的详细信息",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "assignmentId",
-            "in": "path",
-            "required": true,
-            "description": "作业ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "assignmentId": {"type": "integer", "example": 1},
-                        "title": {"type": "string", "example": "项目管理案例分析"},
-                        "description": {"type": "string", "example": "分析一个实际项目案例"},
-                        "courseId": {"type": "integer", "example": 1},
-                        "dueDate": {"type": "string", "format": "date-time", "example": "2024-01-15T23:59:59Z"},
-                        "status": {"type": "string", "example": "ACTIVE"},
-                        "questions": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "questionId": {"type": "integer", "example": 1},
-                              "title": {"type": "string", "example": "项目背景分析"},
-                              "type": {"type": "string", "example": "ESSAY"},
-                              "maxScore": {"type": "integer", "example": 50}
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/assignments/{assignmentId}/submit": {
-      "post": {
-        "tags": ["作业管理"],
-        "summary": "提交作业",
-        "description": "提交作业答案",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "assignmentId",
-            "in": "path",
-            "required": true,
-            "description": "作业ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["answers"],
-                "properties": {
-                  "answers": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "questionId": {"type": "integer", "description": "题目ID"},
-                        "answer": {"type": "string", "description": "答案"},
-                        "attachments": {"type": "array", "items": {"type": "string"}, "description": "附件"}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "提交成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/assignments/{assignmentId}/grade": {
-      "post": {
-        "tags": ["作业管理"],
-        "summary": "批改作业",
-        "description": "批改作业",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "assignmentId",
-            "in": "path",
-            "required": true,
-            "description": "作业ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["submissionId", "scores", "totalScore"],
-                "properties": {
-                  "submissionId": {"type": "integer", "description": "提交ID"},
-                  "scores": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "questionId": {"type": "integer", "description": "题目ID"},
-                        "score": {"type": "integer", "description": "得分"},
-                        "feedback": {"type": "string", "description": "反馈"}
-                      }
-                    }
-                  },
-                  "totalScore": {"type": "integer", "description": "总分"},
-                  "feedback": {"type": "string", "description": "总体反馈"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "批改成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/attendance/checkin": {
-      "post": {
-        "tags": ["出勤管理"],
-        "summary": "签到",
-        "description": "学生签到",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["courseId"],
-                "properties": {
-                  "courseId": {"type": "integer", "description": "课程ID"},
-                  "location": {"type": "string", "description": "签到位置"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "签到成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "签到成功"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "attendanceId": {"type": "integer", "example": 1},
-                        "checkinTime": {"type": "string", "format": "date-time", "example": "2024-01-01T08:00:00Z"},
-                        "status": {"type": "string", "example": "PRESENT"}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/attendance/checkout": {
-      "post": {
-        "tags": ["出勤管理"],
-        "summary": "签退",
-        "description": "学生签退",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["attendanceId"],
-                "properties": {
-                  "attendanceId": {"type": "integer", "description": "出勤记录ID"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "签退成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/attendance/records": {
-      "get": {
-        "tags": ["出勤管理"],
-        "summary": "获取出勤记录",
-        "description": "获取出勤记录",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "courseId",
-            "in": "query",
-            "description": "课程ID",
-            "required": false,
-            "schema": {"type": "integer"}
-          },
-          {
-            "name": "startDate",
-            "in": "query",
-            "description": "开始日期",
-            "required": false,
-            "schema": {"type": "string", "format": "date"}
-          },
-          {
-            "name": "endDate",
-            "in": "query",
-            "description": "结束日期",
-            "required": false,
-            "schema": {"type": "string", "format": "date"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "records": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "attendanceId": {"type": "integer", "example": 1},
-                              "courseId": {"type": "integer", "example": 1},
-                              "checkinTime": {"type": "string", "format": "date-time", "example": "2024-01-01T08:00:00Z"},
-                              "checkoutTime": {"type": "string", "format": "date-time", "example": "2024-01-01T10:00:00Z"},
-                              "status": {"type": "string", "example": "PRESENT"},
-                              "duration": {"type": "integer", "example": 7200}
-                            }
-                          }
-                        },
-                        "attendanceRate": {"type": "number", "example": 85.5}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/attendance/leave": {
-      "post": {
-        "tags": ["出勤管理"],
-        "summary": "请假申请",
-        "description": "学生请假申请",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["courseId", "leaveDate", "reason"],
-                "properties": {
-                  "courseId": {"type": "integer", "description": "课程ID"},
-                  "leaveDate": {"type": "string", "format": "date", "description": "请假日期"},
-                  "reason": {"type": "string", "description": "请假原因"},
-                  "attachments": {"type": "array", "items": {"type": "string"}, "description": "附件"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "申请成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/grades": {
-      "get": {
-        "tags": ["成绩管理"],
-        "summary": "获取成绩列表",
-        "description": "获取成绩列表",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "courseId",
-            "in": "query",
-            "description": "课程ID",
-            "required": false,
-            "schema": {"type": "integer"}
-          },
-          {
-            "name": "type",
-            "in": "query",
-            "description": "成绩类型",
-            "required": false,
-            "schema": {"type": "string", "enum": ["ASSIGNMENT", "EXAM", "ATTENDANCE"]}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "grades": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "gradeId": {"type": "integer", "example": 1},
-                              "courseId": {"type": "integer", "example": 1},
-                              "assignmentId": {"type": "integer", "example": 1},
-                              "score": {"type": "integer", "example": 85},
-                              "maxScore": {"type": "integer", "example": 100},
-                              "percentage": {"type": "number", "example": 85.0},
-                              "grade": {"type": "string", "example": "B+"},
-                              "submittedAt": {"type": "string", "format": "date-time", "example": "2024-01-01T00:00:00Z"}
-                            }
-                          }
-                        },
-                        "averageScore": {"type": "number", "example": 82.5},
-                        "totalAssignments": {"type": "integer", "example": 5},
-                        "completedAssignments": {"type": "integer", "example": 4}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": ["成绩管理"],
-        "summary": "录入成绩",
-        "description": "录入学生成绩",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["studentId", "courseId", "assignmentId", "score"],
-                "properties": {
-                  "studentId": {"type": "integer", "description": "学生ID"},
-                  "courseId": {"type": "integer", "description": "课程ID"},
-                  "assignmentId": {"type": "integer", "description": "作业ID"},
-                  "score": {"type": "integer", "description": "得分"},
-                  "feedback": {"type": "string", "description": "反馈"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "录入成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/grades/{gradeId}": {
-      "get": {
-        "tags": ["成绩管理"],
-        "summary": "获取成绩详情",
-        "description": "获取指定成绩的详细信息",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "gradeId",
-            "in": "path",
-            "required": true,
-            "description": "成绩ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/messages": {
-      "get": {
-        "tags": ["消息通知"],
-        "summary": "获取消息列表",
-        "description": "获取消息列表",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "type",
-            "in": "query",
-            "description": "消息类型",
-            "required": false,
-            "schema": {"type": "string", "enum": ["NOTIFICATION", "ASSIGNMENT", "EXAM", "ANNOUNCEMENT"]}
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "description": "消息状态",
-            "required": false,
-            "schema": {"type": "string", "enum": ["UNREAD", "READ"]}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "messages": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "messageId": {"type": "integer", "example": 1},
-                              "title": {"type": "string", "example": "作业提醒"},
-                              "content": {"type": "string", "example": "项目管理作业即将截止"},
-                              "type": {"type": "string", "example": "ASSIGNMENT"},
-                              "status": {"type": "string", "example": "UNREAD"},
-                              "createdAt": {"type": "string", "format": "date-time", "example": "2024-01-01T00:00:00Z"}
-                            }
-                          }
-                        },
-                        "unreadCount": {"type": "integer", "example": 3}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": ["消息通知"],
-        "summary": "发送消息",
-        "description": "发送消息",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["recipientId", "title", "content", "type"],
-                "properties": {
-                  "recipientId": {"type": "integer", "description": "接收者ID"},
-                  "title": {"type": "string", "description": "消息标题"},
-                  "content": {"type": "string", "description": "消息内容"},
-                  "type": {"type": "string", "enum": ["NOTIFICATION", "ASSIGNMENT", "EXAM", "ANNOUNCEMENT"], "description": "消息类型"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "发送成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/messages/{messageId}/read": {
-      "put": {
-        "tags": ["消息通知"],
-        "summary": "标记消息已读",
-        "description": "标记消息为已读状态",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "messageId",
-            "in": "path",
-            "required": true,
-            "description": "消息ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "标记成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/files/upload": {
-      "post": {
-        "tags": ["文件管理"],
-        "summary": "上传文件",
-        "description": "上传文件",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": ["file"],
-                "properties": {
-                  "file": {"type": "string", "format": "binary", "description": "文件"},
-                  "type": {"type": "string", "description": "文件类型"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "上传成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "上传成功"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "fileId": {"type": "integer", "example": 1},
-                        "fileName": {"type": "string", "example": "document.pdf"},
-                        "fileSize": {"type": "integer", "example": 1024000},
-                        "fileUrl": {"type": "string", "example": "http://localhost:8080/files/1.pdf"},
-                        "uploadedAt": {"type": "string", "format": "date-time", "example": "2024-01-01T00:00:00Z"}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/files/{fileId}/download": {
-      "get": {
-        "tags": ["文件管理"],
-        "summary": "下载文件",
-        "description": "下载文件",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "fileId",
-            "in": "path",
-            "required": true,
-            "description": "文件ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "下载成功",
-            "content": {
-              "application/octet-stream": {
-                "schema": {"type": "string", "format": "binary"}
-              }
-            }
-          }
-        }
-      }
-    },
-    "/files/{fileId}": {
-      "delete": {
-        "tags": ["文件管理"],
-        "summary": "删除文件",
-        "description": "删除文件",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "fileId",
-            "in": "path",
-            "required": true,
-            "description": "文件ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "删除成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/statistics/learning": {
-      "get": {
-        "tags": ["统计分析"],
-        "summary": "获取学习统计",
-        "description": "获取用户学习统计信息",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "courseId",
-            "in": "query",
-            "description": "课程ID",
-            "required": false,
-            "schema": {"type": "integer"}
-          },
-          {
-            "name": "startDate",
-            "in": "query",
-            "description": "开始日期",
-            "required": false,
-            "schema": {"type": "string", "format": "date"}
-          },
-          {
-            "name": "endDate",
-            "in": "query",
-            "description": "结束日期",
-            "required": false,
-            "schema": {"type": "string", "format": "date"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "totalQuestions": {"type": "integer", "example": 100},
-                        "answeredQuestions": {"type": "integer", "example": 85},
-                        "correctAnswers": {"type": "integer", "example": 72},
-                        "accuracy": {"type": "number", "example": 84.7},
-                        "studyTime": {"type": "integer", "example": 3600},
-                        "practiceCount": {"type": "integer", "example": 15},
-                        "averageScore": {"type": "number", "example": 82.5}
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/statistics/course/{courseId}": {
-      "get": {
-        "tags": ["统计分析"],
-        "summary": "获取课程统计",
-        "description": "获取课程统计信息",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "courseId",
-            "in": "path",
-            "required": true,
-            "description": "课程ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {"type": "integer", "example": 200},
-                    "message": {"type": "string", "example": "success"},
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "totalStudents": {"type": "integer", "example": 50},
-                        "activeStudents": {"type": "integer", "example": 45},
-                        "averageAttendance": {"type": "number", "example": 88.5},
-                        "averageScore": {"type": "number", "example": 82.3},
-                        "assignmentCompletion": {"type": "number", "example": 90.0},
-                        "topPerformers": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "studentId": {"type": "integer", "example": 1},
-                              "studentName": {"type": "string", "example": "张三"},
-                              "averageScore": {"type": "number", "example": 95.0}
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/admin/system/info": {
-      "get": {
-        "tags": ["系统管理"],
-        "summary": "获取系统信息",
-        "description": "获取系统信息",
-        "security": [{"bearerAuth": []}],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/admin/users": {
-      "get": {
-        "tags": ["系统管理"],
-        "summary": "获取用户列表",
-        "description": "获取用户列表",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "description": "页码",
-            "required": false,
-            "schema": {"type": "integer", "default": 1}
-          },
-          {
-            "name": "size",
-            "in": "query",
-            "description": "每页数量",
-            "required": false,
-            "schema": {"type": "integer", "default": 10}
-          },
-          {
-            "name": "role",
-            "in": "query",
-            "description": "用户角色",
-            "required": false,
-            "schema": {"type": "string", "enum": ["STUDENT", "TEACHER", "ADMIN"]}
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "description": "用户状态",
-            "required": false,
-            "schema": {"type": "string", "enum": ["ACTIVE", "DISABLED"]}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "获取成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/admin/users/{userId}/status": {
-      "put": {
-        "tags": ["系统管理"],
-        "summary": "禁用/启用用户",
-        "description": "禁用或启用用户",
-        "security": [{"bearerAuth": []}],
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "description": "用户ID",
-            "schema": {"type": "integer"}
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["status"],
-                "properties": {
-                  "status": {"type": "string", "enum": ["ACTIVE", "DISABLED"], "description": "用户状态"}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "操作成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  },
   "components": {
     "securitySchemes": {
       "bearerAuth": {
@@ -1754,81 +31,612 @@
       "SuccessResponse": {
         "type": "object",
         "properties": {
-          "code": {"type": "integer", "example": 200},
-          "message": {"type": "string", "example": "success"},
-          "data": {"type": "object"},
-          "timestamp": {"type": "string", "format": "date-time", "example": "2024-01-01T00:00:00Z"}
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "success" },
+          "data": { "type": "object" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "traceId": { "type": "string" }
         }
       },
       "ErrorResponse": {
         "type": "object",
         "properties": {
-          "code": {"type": "integer", "example": 400},
-          "message": {"type": "string", "example": "请求参数错误"},
-          "data": {"type": "null"},
-          "timestamp": {"type": "string", "format": "date-time", "example": "2024-01-01T00:00:00Z"},
+          "code": { "type": "integer", "example": 400 },
+          "message": { "type": "string", "example": "参数错误" },
           "errors": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "field": {"type": "string", "example": "email"},
-                "message": {"type": "string", "example": "邮箱格式不正确"}
+                "field": { "type": "string" },
+                "message": { "type": "string" }
               }
             }
+          },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "minLength": 6 }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "roles": {
+            "type": "array",
+            "items": { "type": "string", "example": "STUDENT" }
+          },
+          "avatarUrl": { "type": "string" }
+        }
+      },
+      "Assignment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string", "example": "HOMEWORK" },
+          "dueAt": { "type": "string", "format": "date-time" },
+          "status": { "type": "string", "example": "ONGOING" }
+        }
+      },
+      "SubmissionRequest": {
+        "type": "object",
+        "properties": {
+          "content": { "type": "string" },
+          "attachmentIds": {
+            "type": "array",
+            "items": { "type": "integer" }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "登录",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 200 },
+                    "message": { "type": "string" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": { "type": "string" },
+                        "refreshToken": { "type": "string" },
+                        "user": { "$ref": "#/components/schemas/User" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证失败",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "刷新 Token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": { "type": "string" }
+                },
+                "required": ["refreshToken"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "刷新成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": ["User"],
+        "summary": "获取当前用户",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          }
+        }
+      },
+      "put": {
+        "tags": ["User"],
+        "summary": "更新个人资料",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "avatarUrl": { "type": "string" },
+                  "phone": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/courses": {
+      "get": {
+        "tags": ["Course"],
+        "summary": "课程列表",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "semester", "in": "query", "schema": { "type": "string" } },
+          { "name": "keyword", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "size", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer" },
+                    "message": { "type": "string" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": { "type": "array", "items": { "type": "object" } },
+                        "total": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/courses/{courseId}": {
+      "get": {
+        "tags": ["Course"],
+        "summary": "课程详情",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "courseId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer" },
+                    "data": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classes/{classId}/assignments": {
+      "get": {
+        "tags": ["Assignment"],
+        "summary": "班级作业列表",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "classId", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Assignment" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assignments/{assignmentId}": {
+      "get": {
+        "tags": ["Assignment"],
+        "summary": "作业详情",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "assignmentId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Assignment" } } }
+          }
+        }
+      }
+    },
+    "/assignments/{assignmentId}/submissions": {
+      "post": {
+        "tags": ["Assignment"],
+        "summary": "提交作业",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "assignmentId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubmissionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "提交成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/assignments/{assignmentId}/submissions/{submissionId}/grade": {
+      "post": {
+        "tags": ["Assignment"],
+        "summary": "批改作业",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "assignmentId", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "submissionId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "score": { "type": "integer" },
+                  "feedback": { "type": "string" },
+                  "released": { "type": "boolean", "default": true }
+                },
+                "required": ["score"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "批改成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/classes/{classId}/attendance-sessions": {
+      "post": {
+        "tags": ["Attendance"],
+        "summary": "创建考勤",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "classId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "mode": { "type": "string", "enum": ["CODE", "GEO"] },
+                  "startAt": { "type": "string", "format": "date-time" },
+                  "endAt": { "type": "string", "format": "date-time" },
+                  "code": { "type": "string" }
+                },
+                "required": ["title", "mode", "startAt", "endAt"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "创建成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/attendance-sessions/{sessionId}/checkin": {
+      "post": {
+        "tags": ["Attendance"],
+        "summary": "签到",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "sessionId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": { "type": "string" },
+                  "location": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "签到成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/attendance-sessions/{sessionId}/records": {
+      "get": {
+        "tags": ["Attendance"],
+        "summary": "考勤记录",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "sessionId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/classes/{classId}/discussions": {
+      "get": {
+        "tags": ["Discussion"],
+        "summary": "帖子列表",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "classId", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Discussion"],
+        "summary": "发布帖子",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "classId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "content": { "type": "string" },
+                  "attachmentIds": {
+                    "type": "array",
+                    "items": { "type": "integer" }
+                  }
+                },
+                "required": ["title", "content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/discussions/{discussionId}/comments": {
+      "get": {
+        "tags": ["Discussion"],
+        "summary": "评论列表",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "discussionId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Discussion"],
+        "summary": "发表评论",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "discussionId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": { "type": "string" },
+                  "parentId": { "type": "integer", "nullable": true }
+                },
+                "required": ["content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": ["Notification"],
+        "summary": "获取通知",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["UNREAD", "READ"] } },
+          { "name": "type", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/notifications/{notificationId}/read": {
+      "put": {
+        "tags": ["Notification"],
+        "summary": "标记已读",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "notificationId", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/files": {
+      "post": {
+        "tags": ["File"],
+        "summary": "上传文件",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" },
+                  "type": { "type": "string" }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "上传成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/statistics/learning": {
+      "get": {
+        "tags": ["Statistics"],
+        "summary": "学习统计",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "classId", "in": "query", "schema": { "type": "integer" } },
+          { "name": "studentId", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
           }
         }
       }
     }
   },
   "tags": [
-    {
-      "name": "用户认证",
-      "description": "用户注册、登录相关接口"
-    },
-    {
-      "name": "用户管理",
-      "description": "用户信息管理相关接口"
-    },
-    {
-      "name": "课程管理",
-      "description": "课程信息管理相关接口"
-    },
-    {
-      "name": "题目管理",
-      "description": "题目库管理相关接口"
-    },
-    {
-      "name": "刷题系统",
-      "description": "刷题练习相关接口"
-    },
-    {
-      "name": "作业管理",
-      "description": "作业发布、提交、批改相关接口"
-    },
-    {
-      "name": "出勤管理",
-      "description": "出勤签到、统计相关接口"
-    },
-    {
-      "name": "成绩管理",
-      "description": "成绩录入、查询相关接口"
-    },
-    {
-      "name": "消息通知",
-      "description": "消息发送、接收相关接口"
-    },
-    {
-      "name": "文件管理",
-      "description": "文件上传、下载相关接口"
-    },
-    {
-      "name": "统计分析",
-      "description": "数据统计、分析相关接口"
-    },
-    {
-      "name": "系统管理",
-      "description": "系统管理相关接口"
-    }
+    { "name": "Auth" },
+    { "name": "User" },
+    { "name": "Course" },
+    { "name": "Assignment" },
+    { "name": "Attendance" },
+    { "name": "Discussion" },
+    { "name": "Notification" },
+    { "name": "File" },
+    { "name": "Statistics" }
   ]
 }
+
