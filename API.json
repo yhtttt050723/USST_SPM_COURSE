@@ -5,8 +5,7 @@
     "description": "与《项目计划.md》一致的 REST API，覆盖认证、课程、作业、出勤、讨论和统计模块。",
     "version": "1.0.0",
     "contact": {
-      "name": "SPM 开发团队",
-      "email": "dev@usst.edu.cn"
+      "name": "SPM 11开发团队"
     }
   },
   "servers": [
@@ -58,22 +57,25 @@
       },
       "LoginRequest": {
         "type": "object",
-        "required": ["email", "password"],
+        "required": ["studentNo", "password"],
         "properties": {
-          "email": { "type": "string", "format": "email" },
-          "password": { "type": "string", "minLength": 6 }
+          "studentNo": { "type": "string", "description": "学号" },
+          "password": { "type": "string", "minLength": 6, "description": "密码" }
+        }
+      },
+      "SSOLoginResponse": {
+        "type": "object",
+        "properties": {
+          "ssoUrl": { "type": "string", "description": "SSO登录URL" }
         }
       },
       "User": {
         "type": "object",
         "properties": {
           "id": { "type": "integer", "example": 1 },
-          "name": { "type": "string" },
-          "email": { "type": "string" },
-          "roles": {
-            "type": "array",
-            "items": { "type": "string", "example": "STUDENT" }
-          },
+          "studentNo": { "type": "string", "example": "2021001", "description": "学号" },
+          "name": { "type": "string", "example": "张三" },
+          "role": { "type": "string", "enum": ["STUDENT", "TEACHER"], "example": "STUDENT" },
           "avatarUrl": { "type": "string" }
         }
       },
@@ -101,10 +103,71 @@
     }
   },
   "paths": {
+    "/auth/sso/login": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "获取SSO登录URL",
+        "description": "返回学校SSO登录地址，前端重定向到该地址",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 200 },
+                    "data": { "$ref": "#/components/schemas/SSOLoginResponse" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sso/callback": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "SSO回调处理",
+        "description": "处理SSO登录回调，验证ticket后创建/更新用户，返回JWT token",
+        "parameters": [
+          { "name": "ticket", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "登录成功，返回token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 200 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": { "type": "string" },
+                        "refreshToken": { "type": "string" },
+                        "user": { "$ref": "#/components/schemas/User" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SSO ticket无效",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
     "/auth/login": {
       "post": {
         "tags": ["Auth"],
-        "summary": "登录",
+        "summary": "本地登录（备用）",
+        "description": "使用学号和密码登录，如SSO不可用时使用",
         "requestBody": {
           "required": true,
           "content": {
@@ -208,17 +271,11 @@
         }
       }
     },
-    "/courses": {
+    "/course": {
       "get": {
         "tags": ["Course"],
-        "summary": "课程列表",
+        "summary": "获取课程信息（单课程）",
         "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "semester", "in": "query", "schema": { "type": "string" } },
-          { "name": "keyword", "in": "query", "schema": { "type": "string" } },
-          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-          { "name": "size", "in": "query", "schema": { "type": "integer", "default": 10 } }
-        ],
         "responses": {
           "200": {
             "description": "成功",
@@ -228,12 +285,15 @@
                   "type": "object",
                   "properties": {
                     "code": { "type": "integer" },
-                    "message": { "type": "string" },
                     "data": {
                       "type": "object",
                       "properties": {
-                        "items": { "type": "array", "items": { "type": "object" } },
-                        "total": { "type": "integer" }
+                        "id": { "type": "integer" },
+                        "name": { "type": "string" },
+                        "code": { "type": "string" },
+                        "semester": { "type": "string" },
+                        "description": { "type": "string" },
+                        "teacher": { "$ref": "#/components/schemas/User" }
                       }
                     }
                   }
@@ -244,40 +304,54 @@
         }
       }
     },
-    "/courses/{courseId}": {
+    "/course/announcements": {
       "get": {
         "tags": ["Course"],
-        "summary": "课程详情",
+        "summary": "公告列表",
         "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "courseId", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
         "responses": {
           "200": {
             "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": { "type": "integer" },
-                    "data": { "type": "object" }
-                  }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Course"],
+        "summary": "发布公告（教师）",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "content"],
+                "properties": {
+                  "title": { "type": "string" },
+                  "content": { "type": "string" },
+                  "visibleFrom": { "type": "string", "format": "date-time" },
+                  "visibleTo": { "type": "string", "format": "date-time" }
                 }
               }
             }
           }
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
         }
       }
     },
-    "/classes/{classId}/assignments": {
+    "/assignments": {
       "get": {
         "tags": ["Assignment"],
-        "summary": "班级作业列表",
+        "summary": "作业列表",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
-          { "name": "classId", "in": "path", "required": true, "schema": { "type": "integer" } },
-          { "name": "status", "in": "query", "schema": { "type": "string" } }
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["ONGOING", "ENDED"] } }
         ],
         "responses": {
           "200": {
@@ -373,14 +447,11 @@
         }
       }
     },
-    "/classes/{classId}/attendance-sessions": {
+    "/attendance-sessions": {
       "post": {
         "tags": ["Attendance"],
-        "summary": "创建考勤",
+        "summary": "创建考勤（教师）",
         "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "classId", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -437,10 +508,23 @@
         }
       }
     },
+    "/attendance-sessions/my": {
+      "get": {
+        "tags": ["Attendance"],
+        "summary": "我的出勤记录（学生）",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
     "/attendance-sessions/{sessionId}/records": {
       "get": {
         "tags": ["Attendance"],
-        "summary": "考勤记录",
+        "summary": "考勤记录（教师）",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "sessionId", "in": "path", "required": true, "schema": { "type": "integer" } }
@@ -453,13 +537,12 @@
         }
       }
     },
-    "/classes/{classId}/discussions": {
+    "/discussions": {
       "get": {
         "tags": ["Discussion"],
         "summary": "帖子列表",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
-          { "name": "classId", "in": "path", "required": true, "schema": { "type": "integer" } },
           { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } }
         ],
         "responses": {
@@ -473,9 +556,6 @@
         "tags": ["Discussion"],
         "summary": "发布帖子",
         "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "classId", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -612,12 +692,21 @@
     "/statistics/learning": {
       "get": {
         "tags": ["Statistics"],
-        "summary": "学习统计",
+        "summary": "学习统计（学生）",
         "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "classId", "in": "query", "schema": { "type": "integer" } },
-          { "name": "studentId", "in": "query", "schema": { "type": "integer" } }
-        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } }
+          }
+        }
+      }
+    },
+    "/statistics/course": {
+      "get": {
+        "tags": ["Statistics"],
+        "summary": "课程统计（教师）",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "200": {
             "description": "成功",
