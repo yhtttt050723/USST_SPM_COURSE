@@ -1,7 +1,7 @@
 # 项目管理与过程改进课程 API 文档（v1.0）
 
 > 与《项目计划.md》、数据库设计、OpenAPI (`API.json`) 保持一致。遵循 RESTful 风格，统一响应格式。  
-> **单老师、单班级场景**，对接学校SSO登录。
+> **单老师、单班级场景**，使用本地账号登录。
 
 ## 1. 全局信息
 - **Base URL**：`https://{host}/api/v1`
@@ -32,7 +32,7 @@
 ## 2. 模块与迭代范围
 | 模块 | 迭代 1 | 迭代 2 |
 | --- | --- | --- |
-| 认证/用户 | SSO登录、个人资料 | 角色管理 |
+| 认证/用户 | 本地登录/注册、个人资料 | 角色管理 |
 | 课程 | 课程信息（单课程） | 公告 |
 | 作业 | 作业列表/提交/批改 | 权重、统计 |
 | 出勤 | 签到、记录查询 | 请假审批、报表 |
@@ -46,29 +46,26 @@
 
 ## 3. 认证与用户
 
-### 3.1 SSO登录流程
-1. **前端跳转SSO**：`GET /auth/sso/login`
-   - 返回SSO登录URL：`https://ids6.usst.edu.cn/authserver/login?service={回调URL}`
-   - 前端重定向到该URL
+### 3.1 登录
+- `POST /auth/login`
+- 请求：`{ "studentNo": "2021001", "password": "xxx" }`
+- 响应：`token`、`user`（含 `studentNo`、`name`、`role`）
 
-2. **SSO回调处理**：`GET /auth/sso/callback?ticket=xxx`
-   - 后端验证ticket，从SSO获取用户信息（学号、姓名等）
-   - 查询/创建本地用户记录
-   - 生成JWT token并返回前端（可重定向到前端页面并携带token）
+### 3.2 注册
+- `POST /auth/register`
+- 请求：`{ "studentNo": "2021002", "name": "张三", "password": "123456" }`
+- 校验：学号唯一、密码长度≥6
+- 响应：`user` 信息，前端可提示“注册成功，请登录”
 
-3. **本地登录（备用）**：`POST /auth/login`
-   - 请求：`{ "studentNo": "2021001", "password": "xxx" }`
-   - 响应：`token`、`refreshToken`、用户角色
-
-### 3.2 刷新 Token
+### 3.3 刷新 Token（可选）
 - `POST /auth/refresh`
 - 请求：`{ "refreshToken": "xxx" }`
 
-### 3.3 用户详情
+### 3.4 用户详情
 - `GET /users/me`
 - 返回：基本信息、角色（STUDENT/TEACHER）
 
-### 3.4 更新资料
+### 3.5 更新资料
 - `PUT /users/me`
 - 字段：`name`、`avatarUrl`、`phone`
 
@@ -218,7 +215,7 @@
 | 模块 | 错误码 | 描述 |
 | --- | --- | --- |
 | 认证 | 1001 | 用户不存在 |
-| 认证 | 1002 | SSO ticket无效 |
+| 认证 | 1002 | 密码错误/账号被禁用 |
 | 认证 | 1003 | 未授权访问 |
 | 作业 | 4001 | 作业不存在或未开放 |
 | 作业 | 4002 | 超过提交次数或已截止 |
@@ -228,18 +225,9 @@
 
 ---
 
-## 12. SSO对接说明
-- **SSO地址**：`https://ids6.usst.edu.cn/authserver/login?service={回调URL}`
-- **回调URL**：`https://{host}/api/v1/auth/sso/callback`
-- **返回信息**：学号（studentNo）、姓名（name）等
-- **用户同步**：首次登录自动创建用户（role=STUDENT），教师通过配置识别
-- **Token生成**：SSO验证成功后生成JWT，返回前端
-
----
-
-## 13. 文档与测试
+## 12. 文档与测试
 - **Swagger UI**：`/swagger-ui/index.html`
 - **ApiFox 项目**：导入 `API.json`（OpenAPI 3.0）
-- **测试账号**：使用真实学号通过SSO登录测试
+- **测试账号**：可使用 `database/init.sql` 中预置的教师/学生
 
 > 详细字段/枚举/示例请求响应请参考 `API.json`（OpenAPI 3.0）。

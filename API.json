@@ -63,12 +63,6 @@
           "password": { "type": "string", "minLength": 6, "description": "密码" }
         }
       },
-      "SSOLoginResponse": {
-        "type": "object",
-        "properties": {
-          "ssoUrl": { "type": "string", "description": "SSO登录URL" }
-        }
-      },
       "User": {
         "type": "object",
         "properties": {
@@ -103,71 +97,11 @@
     }
   },
   "paths": {
-    "/auth/sso/login": {
-      "get": {
-        "tags": ["Auth"],
-        "summary": "获取SSO登录URL",
-        "description": "返回学校SSO登录地址，前端重定向到该地址",
-        "responses": {
-          "200": {
-            "description": "成功",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": { "type": "integer", "example": 200 },
-                    "data": { "$ref": "#/components/schemas/SSOLoginResponse" }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/sso/callback": {
-      "get": {
-        "tags": ["Auth"],
-        "summary": "SSO回调处理",
-        "description": "处理SSO登录回调，验证ticket后创建/更新用户，返回JWT token",
-        "parameters": [
-          { "name": "ticket", "in": "query", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "登录成功，返回token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": { "type": "integer", "example": 200 },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "token": { "type": "string" },
-                        "refreshToken": { "type": "string" },
-                        "user": { "$ref": "#/components/schemas/User" }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "SSO ticket无效",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
-          }
-        }
-      }
-    },
     "/auth/login": {
       "post": {
         "tags": ["Auth"],
-        "summary": "本地登录（备用）",
-        "description": "使用学号和密码登录，如SSO不可用时使用",
+        "summary": "账号登录",
+        "description": "使用学号和密码登录平台",
         "requestBody": {
           "required": true,
           "content": {

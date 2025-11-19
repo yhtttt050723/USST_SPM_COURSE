@@ -5,13 +5,13 @@
 ## 1. 用户与角色
 | 表 | 关键字段 | 说明 |
 | --- | --- | --- |
-| `users` | `student_no`（学号，UQ）、`name`、`password`（本地备用）、`role`（STUDENT/TEACHER）、`avatar_url`、`status` | 用户表，通过SSO登录后同步创建/更新 |
+| `users` | `student_no`（学号，UQ）、`name`、`password`、`role`（STUDENT/TEACHER）、`avatar_url`、`status` | 用户表，支持本地注册/登录 |
 | `user_sessions` | `user_id`、`token`、`refresh_token`、`expires_at` | JWT会话（可选，如用Redis可省略） |
 
 **说明**：
-- `student_no` 作为唯一标识，对接SSO后自动填充
+- `student_no` 作为唯一标识，注册/导入时必须唯一
 - `role` 字段：默认STUDENT，教师通过配置的学号或手动设置
-- `password` 字段保留但可不使用（SSO认证）
+- `password` 字段存储加密密码（迭代1可先明文，后续切换为BCrypt）
 
 ## 2. 课程（单课程场景）
 | 表 | 关键字段 | 说明 |
@@ -62,7 +62,7 @@
 - 迭代1提交：用户/课程/作业/出勤/文件等核心表
 - 迭代2追加讨论、公告、通知等表
 
-## 9. SSO用户同步逻辑
-- 首次SSO登录：根据返回的学号查询users表，不存在则创建（role默认STUDENT）
-- 教师识别：可通过配置表或固定学号判断，首次登录时设置role=TEACHER
-- 后续登录：更新last_login_at，保持用户信息同步
+## 9. 账号与安全策略
+- 学号由管理员导入或学生自行注册，唯一且不可重复
+- 教师账号由管理员预置于 `users` 表，不允许页面注册
+- 可新增 `last_login_at`、`login_fail_count` 等字段支撑安全策略（可选）

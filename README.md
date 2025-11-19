@@ -52,11 +52,6 @@ cd USST_SPM_COURSE
      spring.datasource.username=spm_user
      spring.datasource.password=YourStrongPassword
      ```
-   - 如果要对接学校 SSO，可额外添加：  
-     ```
-     sso.login-url=https://ids6.usst.edu.cn/authserver/login
-     sso.callback-url=http://localhost:8080/api/auth/sso/callback
-     ```
 2. **运行（开发模式）**
    ```powershell
    cd Backend/demo

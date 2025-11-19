@@ -24,7 +24,6 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         User user = userRepository.findByStudentNo(request.getStudentNo())
                 .orElseThrow(() -> new RuntimeException("学号不存在"));
-        // 先用固定密码验证，后续接 SSO
         if (!"123456".equals(request.getPassword())) {
             throw new RuntimeException("密码错误（暂时固定123456）");
         }
