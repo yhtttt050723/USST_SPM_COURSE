@@ -48,8 +48,11 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { login, register } from '@/api/auth'
+import { useUserStore } from '@/stores/userStore'
 
 const router = useRouter()
+const { setUser, hydrateUserFromCache } = useUserStore()
+hydrateUserFromCache()
 const form = reactive({
   studentNo: '',
   name: '',
@@ -81,7 +84,7 @@ const handleSubmit = async () => {
         password: form.password
       })
       message.value = `登录成功：${data.name} (${data.studentNo})`
-      sessionStorage.setItem('spm-user', JSON.stringify(data))
+      setUser(data)
       router.push('/main')
     } else {
       const { data } = await register({

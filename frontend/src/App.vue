@@ -1,5 +1,13 @@
 <script setup>
+import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
+import { useUserStore } from '@/stores/userStore'
+
+const { hydrateUserFromCache } = useUserStore()
+
+onMounted(() => {
+  hydrateUserFromCache()
+})
 </script>
 
 <template>
