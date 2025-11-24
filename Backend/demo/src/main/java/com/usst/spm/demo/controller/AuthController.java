@@ -8,6 +8,7 @@ import com.usst.spm.demo.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.usst.spm.demo.util.JwtUtil;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -15,9 +16,11 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
-    public AuthController(UserRepository userRepository) {
+    public AuthController(UserRepository userRepository,JwtUtil jwtUtil) {
         this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/login")
@@ -27,7 +30,10 @@ public class AuthController {
         if (!"123456".equals(request.getPassword())) {
             throw new RuntimeException("密码错误（暂时固定123456）");
         }
-        LoginResponse resp = new LoginResponse(user.getStudentNo(), user.getName(), user.getRole());
+
+        String token = jwtUtil.generateToken(user.getStudentNo(), user.getRole());
+
+        LoginResponse resp = new LoginResponse(user.getStudentNo(), user.getName(), user.getRole(), token);
         return ResponseEntity.ok(resp);
     }
 
@@ -43,7 +49,10 @@ public class AuthController {
         user.setRole("STUDENT");
         user.setStatus(1);
         userRepository.save(user);
+
+        String token = jwtUtil.generateToken(user.getStudentNo(), user.getRole());
+
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new LoginResponse(user.getStudentNo(), user.getName(), user.getRole()));
+                .body(new LoginResponse(user.getStudentNo(), user.getName(), user.getRole(), token));
     }
 }
