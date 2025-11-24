@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   total_score INT DEFAULT 100,
   allow_resubmit TINYINT DEFAULT 0,
   due_at DATETIME,
+  status VARCHAR(16) DEFAULT 'ONGOING',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
@@ -110,9 +111,10 @@ CREATE TABLE IF NOT EXISTS attendance_records (
 );
 
 -- 5. 初始化数据
-INSERT INTO users (student_no, name, role, password)
-VALUES ('T0001', '欧广宇', 'TEACHER', '$2a$10$exampleHash')
-ON DUPLICATE KEY UPDATE name = VALUES(name), role = VALUES(role);
+-- 教师账号：学号 T0001，密码 123456
+INSERT INTO users (student_no, name, role, password, status)
+VALUES ('T0001', '欧广宇', 'TEACHER', '123456', 1)
+ON DUPLICATE KEY UPDATE name = VALUES(name), role = VALUES(role), password = VALUES(password), status = VALUES(status);
 
 INSERT INTO course (name, code, semester, description, teacher_id)
 VALUES (
