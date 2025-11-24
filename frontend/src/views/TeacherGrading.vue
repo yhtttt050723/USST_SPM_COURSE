@@ -15,50 +15,66 @@
       </el-select>
     </div>
 
-    <div v-if="selectedAssignmentId" class="submissions-list">
-      <div
-        v-for="submission in submissions"
-        :key="submission.id"
-        class="submission-card"
-        :class="{ graded: submission.graded }"
-      >
-        <div class="submission-header">
-          <div>
-            <p class="student-name">{{ submission.studentName }} ({{ submission.studentNo }})</p>
-            <p class="submit-time">提交时间：{{ formatTime(submission.submittedAt) }}</p>
-          </div>
-          <el-tag v-if="submission.graded" type="success">已批改</el-tag>
-          <el-tag v-else type="warning">待批改</el-tag>
-        </div>
-
-        <div class="submission-content">
-          <p class="content-label">提交内容：</p>
-          <div class="content-text">{{ submission.content || '无内容' }}</div>
-        </div>
-
-        <div v-if="submission.graded" class="grade-info">
-          <p>成绩：<strong>{{ submission.score }}</strong> 分</p>
-          <p>评语：{{ submission.feedback || '无评语' }}</p>
-        </div>
-
-        <div class="submission-actions">
-          <el-button
-            v-if="!submission.graded"
-            type="primary"
-            @click="openGradingDialog(submission)"
-          >
-            批改
-          </el-button>
-          <el-button
-            v-else
-            type="primary"
-            plain
-            @click="openGradingDialog(submission)"
-          >
-            修改成绩
-          </el-button>
-        </div>
-      </div>
+    <div v-if="selectedAssignmentId" class="submissions-container">
+      <el-table :data="submissions" style="width: 100%" stripe>
+        <el-table-column prop="studentName" label="学生姓名" width="120">
+          <template #default="{ row }">
+            <div>
+              <p style="margin: 0; font-weight: 600;">{{ row.studentName }}</p>
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">{{ row.studentNo }}</p>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="submittedAt" label="提交时间" width="180">
+          <template #default="{ row }">
+            {{ formatTime(row.submittedAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="content" label="提交内容" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.content || '无内容' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="文件" width="150">
+          <template #default="{ row }">
+            <div v-if="row.files && row.files.length > 0" class="file-count">
+              <el-icon><Document /></el-icon>
+              <span>{{ row.files.length }} 个文件</span>
+            </div>
+            <span v-else style="color: #9ca3af;">无文件</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="graded" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.graded" type="success">已批改</el-tag>
+            <el-tag v-else type="warning">待批改</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="score" label="成绩" width="80">
+          <template #default="{ row }">
+            <span v-if="row.score !== null && row.score !== undefined">{{ row.score }} 分</span>
+            <span v-else style="color: #9ca3af;">--</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              type="primary"
+              @click="openGradingDialog(row)"
+            >
+              {{ row.graded ? '修改成绩' : '批改' }}
+            </el-button>
+            <el-button
+              v-if="row.files && row.files.length > 0"
+              size="small"
+              @click="viewFiles(row)"
+            >
+              查看文件
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
       <div v-if="submissions.length === 0" class="empty-state">
         <p>该作业暂无提交记录</p>
@@ -111,9 +127,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { ElButton, ElTag, ElSelect, ElOption, ElDialog, ElForm, ElFormItem, ElInput, ElInputNumber, ElSwitch } from 'element-plus'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { Document } from '@element-plus/icons-vue'
+import { ElButton, ElTag, ElSelect, ElOption, ElDialog, ElForm, ElFormItem, ElInput, ElInputNumber, ElSwitch, ElIcon, ElMessage, ElTable, ElTableColumn } from 'element-plus'
 import { getAssignments as getTeacherAssignments, getSubmissions, gradeSubmission } from '@/api/teacher'
+import { downloadFile as downloadFileApi } from '@/api/file'
 import { useUserStore } from '@/stores/userStore'
 
 defineOptions({
@@ -125,6 +143,7 @@ const assignments = ref([])
 const selectedAssignmentId = ref(null)
 const submissions = ref([])
 const showGradingDialog = ref(false)
+const showFilesDialog = ref(false)
 const grading = ref(false)
 const currentSubmission = ref(null)
 const currentAssignment = ref(null)
@@ -145,43 +164,46 @@ const loadAssignments = async () => {
   try {
     const response = await getTeacherAssignments()
     assignments.value = response.data || []
+    // 如果只有一个作业，自动选择
+    if (assignments.value.length === 1 && !selectedAssignmentId.value) {
+      selectedAssignmentId.value = assignments.value[0].id
+      loadSubmissions()
+    }
   } catch (error) {
     console.error('获取作业列表失败:', error)
+    ElMessage.error('获取作业列表失败')
   }
 }
+
+// 监听选择作业事件（从作业管理页面触发）
+window.addEventListener('select-assignment', (event) => {
+  if (event.detail && event.detail.assignmentId) {
+    selectedAssignmentId.value = event.detail.assignmentId
+    loadSubmissions()
+  }
+})
 
 const loadSubmissions = async () => {
   if (!selectedAssignmentId.value) return
 
   try {
+    console.log('正在获取提交列表，作业ID:', selectedAssignmentId.value)
     const response = await getSubmissions(selectedAssignmentId.value)
+    console.log('获取提交列表响应:', response)
     submissions.value = response.data || []
     currentAssignment.value = assignments.value.find(a => a.id === selectedAssignmentId.value)
+    
+    if (submissions.value.length === 0) {
+      ElMessage.info('该作业暂无提交记录')
+    } else {
+      console.log('成功获取提交列表，共', submissions.value.length, '条记录')
+    }
   } catch (error) {
     console.error('获取提交列表失败:', error)
-    // 使用模拟数据
-    submissions.value = [
-      {
-        id: 1,
-        studentId: 1,
-        studentName: '张三',
-        studentNo: '2021001',
-        content: '这是学生的作业提交内容...',
-        submittedAt: '2025-09-15T10:30:00',
-        graded: false
-      },
-      {
-        id: 2,
-        studentId: 2,
-        studentName: '李四',
-        studentNo: '2021002',
-        content: '这是另一个学生的作业提交内容...',
-        submittedAt: '2025-09-15T14:20:00',
-        graded: true,
-        score: 92,
-        feedback: '分析充分，注意格式。'
-      }
-    ]
+    console.error('错误详情:', error.response?.data || error.message)
+    const errorMessage = error.response?.data?.message || error.message || '获取提交列表失败'
+    ElMessage.error(errorMessage)
+    submissions.value = []
   }
 }
 
@@ -195,9 +217,14 @@ const openGradingDialog = (submission) => {
   showGradingDialog.value = true
 }
 
+const viewFiles = (submission) => {
+  currentSubmission.value = submission
+  showFilesDialog.value = true
+}
+
 const submitGrading = async () => {
   if (gradingForm.value.score === null) {
-    alert('请输入成绩')
+    ElMessage.warning('请输入成绩')
     return
   }
 
@@ -211,18 +238,62 @@ const submitGrading = async () => {
         teacherId: currentUser.value?.id
       }
     )
+    ElMessage.success('批改成功')
     showGradingDialog.value = false
-    loadSubmissions()
+    // 刷新提交列表
+    await loadSubmissions()
   } catch (error) {
     console.error('批改失败:', error)
-    alert('批改失败，请重试')
+    ElMessage.error('批改失败，请重试')
   } finally {
     grading.value = false
   }
 }
 
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+// 下载文件
+const downloadFile = async (fileId, fileName) => {
+  try {
+    const response = await downloadFileApi(fileId)
+    const blob = new Blob([response.data])
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('下载成功')
+  } catch (error) {
+    console.error('下载失败:', error)
+    ElMessage.error('下载失败，请重试')
+  }
+}
+
+// 监听选择作业事件（从作业管理页面触发）
+const handleSelectAssignment = (event) => {
+  if (event.detail && event.detail.assignmentId) {
+    selectedAssignmentId.value = event.detail.assignmentId
+    loadSubmissions()
+  }
+}
+
 onMounted(() => {
   loadAssignments()
+  window.addEventListener('select-assignment', handleSelectAssignment)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('select-assignment', handleSelectAssignment)
 })
 </script>
 
@@ -317,10 +388,82 @@ onMounted(() => {
   margin-top: 16px;
 }
 
+.submission-files {
+  margin: 16px 0;
+  padding: 12px;
+  background: #f0f9ff;
+  border-radius: 8px;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #fff;
+  border-radius: 6px;
+}
+
+.file-name {
+  flex: 1;
+  color: #374151;
+  font-size: 14px;
+}
+
+.file-size {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.file-list-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.file-item-dialog {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.file-info {
+  flex: 1;
+}
+
+.file-info .file-name {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.file-info .file-size {
+  margin: 0;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.empty-files {
+  text-align: center;
+  padding: 40px;
+  color: #9ca3af;
+}
+
 .empty-state {
   text-align: center;
   padding: 60px 20px;
   color: #9ca3af;
 }
 </style>
+
 

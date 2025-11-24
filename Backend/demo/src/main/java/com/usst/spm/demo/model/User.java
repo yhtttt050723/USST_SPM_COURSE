@@ -20,6 +20,8 @@ public class User {
 
     private Integer status;
 
+    private Integer deleted;
+
     public Long getId() {
         return id;
     }
@@ -62,5 +64,13 @@ public class User {
 
     public void setStatus(Integer status) {
         this.status = status;
+    }
+
+    public Integer getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Integer deleted) {
+        this.deleted = deleted;
     }
 }

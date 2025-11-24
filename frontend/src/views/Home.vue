@@ -109,7 +109,7 @@
 </template>
 
 <script setup>
-import { computed, markRaw, onMounted, ref } from 'vue'
+import { computed, markRaw, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { House, Document, UserFilled, ChatDotRound } from '@element-plus/icons-vue'
 import { ElIcon, ElTag } from 'element-plus'
@@ -121,6 +121,7 @@ import TeacherAssignments from './TeacherAssignments.vue'
 import TeacherGrading from './TeacherGrading.vue'
 import { useUserStore } from '@/stores/userStore'
 import { getAssignments } from '@/api/assignment'
+import { getAssignments as getTeacherAssignmentsApi } from '@/api/teacher'
 
 const router = useRouter()
 const { currentUser, hydrateUserFromCache } = useUserStore()
@@ -181,7 +182,8 @@ const fetchStudentAssignments = async () => {
     const now = new Date()
     pendingAssignments.value = studentAssignments.value
       .filter(item => {
-        if (item.submissionStatus === 'graded') return false // 已完成的排除
+        // 已提交或已批改的排除
+        if (item.submissionStatus === 'graded' || item.submissionStatus === 'submitted') return false
         if (item.dueAt) {
           const dueDate = new Date(item.dueAt)
           return dueDate > now // 未截止
@@ -193,7 +195,7 @@ const fetchStudentAssignments = async () => {
         id: item.id,
         title: item.title,
         deadline: formatDeadline(item.dueAt),
-        status: item.submissionStatus === 'submitted' ? 'progress' : 'pending'
+        status: 'pending'
       }))
   } catch (error) {
     console.error('获取作业数据失败:', error)
@@ -206,19 +208,38 @@ const fetchStudentAssignments = async () => {
   }
 }
 
+// 教师端作业数据
+const teacherAssignments = ref([])
+
+// 获取教师端作业数据
+const fetchTeacherAssignments = async () => {
+  if (!isTeacher.value || !currentUser.value?.id) return
+
+  try {
+    const response = await getTeacherAssignmentsApi()
+    teacherAssignments.value = response.data || []
+  } catch (error) {
+    console.error('获取作业数据失败:', error)
+  }
+}
+
 // 计算统计数据
 const homeStats = computed(() => {
   if (isTeacher.value) {
+    const totalAssignments = teacherAssignments.value.length
     return [
-      { label: '已完成作业', value: '12 / 15', trend: '整体完成率 80%' },
+      { label: '已发布作业', value: totalAssignments.toString(), trend: '本学期共发布' },
       { label: '本周出勤率', value: '92%', trend: '较上周 +3%' },
       { label: '讨论区互动', value: '34 条', trend: '本周新增 8 条' }
     ]
   }
 
   // 学生端：基于真实数据计算
+  // 已完成 = 已提交(submitted) + 已批改(graded)
   const total = studentAssignments.value.length
-  const completed = studentAssignments.value.filter(item => item.submissionStatus === 'graded').length
+  const completed = studentAssignments.value.filter(item => 
+    item.submissionStatus === 'graded' || item.submissionStatus === 'submitted'
+  ).length
   const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
 
   return [
@@ -243,7 +264,28 @@ const handleNavClick = (navId) => {
   activeNav.value = navId
 }
 
+// 监听“查看提交”事件（来自教师端作业列表）
+const handleViewSubmissions = (event) => {
+  const assignmentId = event.detail?.assignmentId
+  if (!assignmentId) return
+
+  activeNav.value = 'grading'
+
+  // 等待视图切换完成后通知批改页面选择作业
+  nextTick(() => {
+    window.dispatchEvent(
+      new CustomEvent('select-assignment', {
+        detail: { assignmentId }
+      })
+    )
+  })
+}
+
+// 添加定时刷新，以便获取最新的成绩
+let refreshInterval = null
+
 onMounted(async () => {
+  window.addEventListener('view-submissions', handleViewSubmissions)
   // 非阻塞式用户缓存加载，避免影响视图渲染
   try {
     const cachedUser = hydrateUserFromCache()
@@ -251,13 +293,28 @@ onMounted(async () => {
       router.replace('/login')
       return
     }
-    // 如果是学生，获取作业数据
-    if (!isTeacher.value) {
+    // 根据角色获取数据
+    if (isTeacher.value) {
+      await fetchTeacherAssignments()
+    } else {
       await fetchStudentAssignments()
+      // 学生端：每30秒自动刷新一次，获取最新成绩
+      refreshInterval = setInterval(() => {
+        if (currentUser.value?.id && !isTeacher.value) {
+          fetchStudentAssignments()
+        }
+      }, 30000)
     }
   } catch (error) {
     console.error('用户缓存加载失败:', error)
     router.replace('/login')
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('view-submissions', handleViewSubmissions)
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
   }
 })
 </script>
