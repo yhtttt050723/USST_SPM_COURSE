@@ -5,18 +5,18 @@
         <p class="brand-tag">USST · SPM</p>
         <h1>项目管理学习平台</h1>
       </div>
-      <nav class="nav">
-        <button
-          v-for="item in navItems"
-          :key="item.id"
-          class="nav-item"
-          :class="{ active: activeNav === item.id }"
-          @click="handleNavClick(item.id)"
-        >
-          <el-icon><component :is="item.icon" /></el-icon>
-          <span>{{ item.label }}</span>
-        </button>
-      </nav>
+          <nav class="nav">
+            <button
+              v-for="item in navItems"
+              :key="item.id"
+              class="nav-item"
+              :class="{ active: activeNav === item.id }"
+              @click="handleNavClick(item.id)"
+            >
+              <el-icon><component :is="markRaw(item.icon)" /></el-icon>
+              <span>{{ item.label }}</span>
+            </button>
+          </nav>
     </aside>
 
     <section class="main-section">
@@ -39,22 +39,28 @@
             </div>
           </div>
         </div>
-        <!-- 调试信息 -->
-        <div v-if="activeNav !== 'home'" style="margin-bottom: 10px; padding: 8px; background: #e3f2fd; border-radius: 4px; font-size: 12px; color: #1976d2;">
-          当前导航: {{ activeNav }}
-        </div>
-        
-        <Assignments v-if="activeNav === 'assignments'" />
-        
-        <div v-if="activeNav === 'attendance'">
-          <p style="background: yellow; padding: 5px; margin-bottom: 10px;">正在加载出勤组件...</p>
-          <Attendance />
-        </div>
-        
-        <div v-if="activeNav === 'discussion'">
-          <p style="background: lightgreen; padding: 5px; margin-bottom: 10px;">正在加载讨论区组件...</p>
-          <Discussion />
-        </div>
+        <!-- 学生端内容 -->
+        <template v-if="!isTeacher">
+          <Assignments v-if="activeNav === 'assignments'" />
+          <div v-if="activeNav === 'attendance'">
+            <Attendance />
+          </div>
+          <div v-if="activeNav === 'discussion'">
+            <Discussion />
+          </div>
+        </template>
+
+        <!-- 教师端内容 -->
+        <template v-else>
+          <TeacherAssignments v-if="activeNav === 'assignments'" />
+          <TeacherGrading v-if="activeNav === 'grading'" />
+          <div v-if="activeNav === 'attendance'">
+            <Attendance />
+          </div>
+          <div v-if="activeNav === 'discussion'">
+            <Discussion />
+          </div>
+        </template>
       </div>
     </section>
 
@@ -106,30 +112,45 @@
 import { computed, markRaw, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { House, Document, UserFilled, ChatDotRound } from '@element-plus/icons-vue'
+import { ElIcon, ElTag } from 'element-plus'
 
 import Assignments from './Assignments.vue'
 import Attendance from './Attendance.vue'
-import AttendanceTest2 from './AttendanceTest2.vue'
 import Discussion from './Discussion.vue'
-import DiscussionTest2 from './DiscussionTest2.vue'
+import TeacherAssignments from './TeacherAssignments.vue'
+import TeacherGrading from './TeacherGrading.vue'
 import { useUserStore } from '@/stores/userStore'
+import { getAssignments } from '@/api/assignment'
 
 const router = useRouter()
 const { currentUser, hydrateUserFromCache } = useUserStore()
 const activeNav = ref('home')
 
-const navItems = [
-  { id: 'home', label: '首页', icon: House },
-  { id: 'assignments', label: '作业', icon: Document },
-  { id: 'attendance', label: '出勤', icon: UserFilled },
-  { id: 'discussion', label: '讨论区', icon: ChatDotRound }
-]
+const user = computed(() => currentUser.value || {})
+const isTeacher = computed(() => user.value.role === 'TEACHER')
 
-const pendingAssignments = [
-  { id: 1, title: '需求规格说明书', deadline: '09-18 18:00', status: 'pending' },
-  { id: 2, title: '数据库设计稿', deadline: '09-21 23:59', status: 'pending' },
-  { id: 3, title: '迭代计划汇报', deadline: '09-25 20:00', status: 'progress' }
-]
+// 学生作业数据
+const studentAssignments = ref([])
+const pendingAssignments = ref([])
+
+const navItems = computed(() => {
+  if (isTeacher.value) {
+    return [
+      { id: 'home', label: '首页', icon: House },
+      { id: 'assignments', label: '作业管理', icon: Document },
+      { id: 'grading', label: '批改作业', icon: Document },
+      { id: 'attendance', label: '出勤管理', icon: UserFilled },
+      { id: 'discussion', label: '讨论区', icon: ChatDotRound }
+    ]
+  } else {
+    return [
+      { id: 'home', label: '首页', icon: House },
+      { id: 'assignments', label: '作业', icon: Document },
+      { id: 'attendance', label: '出勤', icon: UserFilled },
+      { id: 'discussion', label: '讨论区', icon: ChatDotRound }
+    ]
+  }
+})
 
 const schedules = [
   { id: 1, weekday: '周三', topic: '敏捷开发实践', time: '10:00 - 12:00' },
@@ -137,15 +158,82 @@ const schedules = [
   { id: 3, weekday: '周五', topic: '小组站会', time: '09:00 - 09:30' }
 ]
 
-const homeStats = [
-  { label: '已完成作业', value: '12 / 15', trend: '整体完成率 80%' },
-  { label: '本周出勤率', value: '92%', trend: '较上周 +3%' },
-  { label: '讨论区互动', value: '34 条', trend: '本周新增 8 条' }
-]
+// 格式化日期为 MM-dd HH:mm
+const formatDeadline = (dateString) => {
+  if (!dateString) return '--'
+  const date = new Date(dateString)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${month}-${day} ${hours}:${minutes}`
+}
+
+// 获取学生作业数据
+const fetchStudentAssignments = async () => {
+  if (isTeacher.value || !currentUser.value?.id) return
+
+  try {
+    const response = await getAssignments('all', currentUser.value.id)
+    studentAssignments.value = response.data || []
+    
+    // 计算待办作业（未提交且未截止的作业）
+    const now = new Date()
+    pendingAssignments.value = studentAssignments.value
+      .filter(item => {
+        if (item.submissionStatus === 'graded') return false // 已完成的排除
+        if (item.dueAt) {
+          const dueDate = new Date(item.dueAt)
+          return dueDate > now // 未截止
+        }
+        return true
+      })
+      .slice(0, 3) // 只显示前3个
+      .map(item => ({
+        id: item.id,
+        title: item.title,
+        deadline: formatDeadline(item.dueAt),
+        status: item.submissionStatus === 'submitted' ? 'progress' : 'pending'
+      }))
+  } catch (error) {
+    console.error('获取作业数据失败:', error)
+    // 使用默认数据
+    pendingAssignments.value = [
+      { id: 1, title: '需求规格说明书', deadline: '09-18 18:00', status: 'pending' },
+      { id: 2, title: '数据库设计稿', deadline: '09-21 23:59', status: 'pending' },
+      { id: 3, title: '迭代计划汇报', deadline: '09-25 20:00', status: 'progress' }
+    ]
+  }
+}
+
+// 计算统计数据
+const homeStats = computed(() => {
+  if (isTeacher.value) {
+    return [
+      { label: '已完成作业', value: '12 / 15', trend: '整体完成率 80%' },
+      { label: '本周出勤率', value: '92%', trend: '较上周 +3%' },
+      { label: '讨论区互动', value: '34 条', trend: '本周新增 8 条' }
+    ]
+  }
+
+  // 学生端：基于真实数据计算
+  const total = studentAssignments.value.length
+  const completed = studentAssignments.value.filter(item => item.submissionStatus === 'graded').length
+  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+
+  return [
+    { 
+      label: '已完成作业', 
+      value: `${completed} / ${total}`, 
+      trend: `整体完成率 ${completionRate}%` 
+    },
+    { label: '本周出勤率', value: '92%', trend: '较上周 +3%' },
+    { label: '讨论区互动', value: '34 条', trend: '本周新增 8 条' }
+  ]
+})
 
 const scheduleSummary = computed(() => schedules.map((item) => `${item.weekday}${item.topic}`).join('，'))
 
-const user = computed(() => currentUser.value || {})
 const userInitial = computed(() => (user.value.name ? user.value.name.slice(0, 1) : '学'))
 
 // 简化逻辑，直接使用 v-if 渲染组件
@@ -162,6 +250,10 @@ onMounted(async () => {
     if (!cachedUser) {
       router.replace('/login')
       return
+    }
+    // 如果是学生，获取作业数据
+    if (!isTeacher.value) {
+      await fetchStudentAssignments()
     }
   } catch (error) {
     console.error('用户缓存加载失败:', error)

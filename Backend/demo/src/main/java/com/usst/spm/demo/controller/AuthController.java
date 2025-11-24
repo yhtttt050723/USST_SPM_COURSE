@@ -24,10 +24,37 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         User user = userRepository.findByStudentNo(request.getStudentNo())
                 .orElseThrow(() -> new RuntimeException("学号不存在"));
-        if (!"123456".equals(request.getPassword())) {
-            throw new RuntimeException("密码错误（暂时固定123456）");
+        
+        // 检查用户状态
+        if (user.getStatus() != null && user.getStatus() == 0) {
+            throw new RuntimeException("账号已被禁用");
         }
-        LoginResponse resp = new LoginResponse(user.getStudentNo(), user.getName(), user.getRole());
+        
+        // 密码验证
+        // 开发阶段：统一使用 "123456" 作为默认密码（所有用户，包括教师）
+        // 如果数据库中有密码，优先验证数据库中的密码（明文比较）
+        String storedPassword = user.getPassword();
+        boolean passwordValid = false;
+        
+        if (storedPassword != null && !storedPassword.isEmpty()) {
+            // 如果是BCrypt哈希值（以 $2a$ 或 $2b$ 开头），开发阶段统一使用 "123456"
+            if (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$")) {
+                // 开发阶段：所有用户（包括教师）统一使用 "123456"
+                passwordValid = "123456".equals(request.getPassword());
+            } else {
+                // 明文密码，直接比较
+                passwordValid = storedPassword.equals(request.getPassword());
+            }
+        } else {
+            // 如果没有密码，默认使用 "123456"
+            passwordValid = "123456".equals(request.getPassword());
+        }
+        
+        if (!passwordValid) {
+            throw new RuntimeException("密码错误");
+        }
+        
+        LoginResponse resp = new LoginResponse(user.getId(), user.getStudentNo(), user.getName(), user.getRole());
         return ResponseEntity.ok(resp);
     }
 
@@ -42,8 +69,8 @@ public class AuthController {
         user.setPassword(req.getPassword()); // 先明文，后续可加密
         user.setRole("STUDENT");
         user.setStatus(1);
-        userRepository.save(user);
+        user = userRepository.save(user);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new LoginResponse(user.getStudentNo(), user.getName(), user.getRole()));
+                .body(new LoginResponse(user.getId(), user.getStudentNo(), user.getName(), user.getRole()));
     }
 }

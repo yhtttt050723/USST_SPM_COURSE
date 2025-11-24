@@ -51,8 +51,7 @@ import { login, register } from '@/api/auth'
 import { useUserStore } from '@/stores/userStore'
 
 const router = useRouter()
-const { setUser, hydrateUserFromCache } = useUserStore()
-hydrateUserFromCache()
+const { setUser } = useUserStore()
 const form = reactive({
   studentNo: '',
   name: '',

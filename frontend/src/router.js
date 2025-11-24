@@ -18,6 +18,7 @@ router.beforeEach((to, from, next) => {
   if (to.path === '/main' && !authed) {
     next('/login')
   } else if (to.path === '/login' && authed) {
+    // 如果已登录，访问登录页时重定向到主页
     next('/main')
   } else {
     next()
