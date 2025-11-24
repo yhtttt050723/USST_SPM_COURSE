@@ -20,6 +20,11 @@ public class AssignmentResponse {
     private Integer score;
     private String feedback;
     private LocalDateTime submittedAt;
+    
+    // 教师视角：统计信息
+    private Integer totalStudents; // 学生总数
+    private Integer submissionCount; // 提交人数
+    private Integer gradedCount; // 已批改人数
 
     public AssignmentResponse() {
     }
@@ -142,6 +147,30 @@ public class AssignmentResponse {
 
     public void setSubmittedAt(LocalDateTime submittedAt) {
         this.submittedAt = submittedAt;
+    }
+
+    public Integer getTotalStudents() {
+        return totalStudents;
+    }
+
+    public void setTotalStudents(Integer totalStudents) {
+        this.totalStudents = totalStudents;
+    }
+
+    public Integer getSubmissionCount() {
+        return submissionCount;
+    }
+
+    public void setSubmissionCount(Integer submissionCount) {
+        this.submissionCount = submissionCount;
+    }
+
+    public Integer getGradedCount() {
+        return gradedCount;
+    }
+
+    public void setGradedCount(Integer gradedCount) {
+        this.gradedCount = gradedCount;
     }
 }
 

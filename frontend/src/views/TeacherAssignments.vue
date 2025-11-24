@@ -190,9 +190,10 @@ const editAssignment = (assignment) => {
 }
 
 const viewSubmissions = (assignmentId) => {
-  // 跳转到提交列表页面（待实现）
-  console.log('查看作业提交:', assignmentId)
-  // 可以emit事件或使用router跳转
+  // 触发父组件切换导航到批改作业页面
+  // 通过事件通知父组件
+  const event = new CustomEvent('view-submissions', { detail: { assignmentId } })
+  window.dispatchEvent(event)
 }
 
 const resetForm = () => {

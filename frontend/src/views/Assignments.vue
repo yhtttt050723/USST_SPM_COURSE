@@ -72,13 +72,31 @@
         <el-form-item label="截止时间">
           <el-input :value="currentAssignment?.deadline || ''" disabled />
         </el-form-item>
-        <el-form-item label="提交内容" required>
+        <el-form-item label="提交内容">
           <el-input
             v-model="submitForm.content"
             type="textarea"
-            :rows="6"
-            placeholder="请输入作业内容..."
+            :rows="4"
+            placeholder="请输入作业内容（可选）..."
           />
+        </el-form-item>
+        <el-form-item label="上传文件">
+          <el-upload
+            ref="uploadRef"
+            :auto-upload="false"
+            :on-change="handleFileChange"
+            :on-remove="handleFileRemove"
+            :file-list="fileList"
+            :limit="5"
+            accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx"
+          >
+            <el-button type="primary">选择文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">
+                支持 PDF、DOC、DOCX、TXT、XLS、XLSX、PPT、PPTX 格式，最多5个文件
+              </div>
+            </template>
+          </el-upload>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -90,10 +108,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { getAssignments, submitAssignment as submitAssignmentApi } from '@/api/assignment'
+import { uploadFile } from '@/api/file'
 import { useUserStore } from '@/stores/userStore'
-import { ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElMessage } from 'element-plus'
+import { ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElMessage, ElUpload, ElSelect, ElOption } from 'element-plus'
 
 defineOptions({
   name: 'AssignmentsView'
@@ -110,6 +129,9 @@ const currentAssignment = ref(null)
 const submitForm = ref({
   content: ''
 })
+const fileList = ref([])
+const uploadRef = ref(null)
+const uploading = ref(false)
 
 // 格式化日期为 MM-dd HH:mm
 const formatDeadline = (dateString) => {
@@ -212,13 +234,24 @@ const statusType = (status) =>
 const openSubmitDialog = (assignment) => {
   currentAssignment.value = assignment
   submitForm.value.content = ''
+  fileList.value = []
   showSubmitDialog.value = true
+}
+
+// 处理文件变化
+const handleFileChange = (file) => {
+  // 文件已添加到列表
+}
+
+// 处理文件移除
+const handleFileRemove = (file) => {
+  // 文件已从列表移除
 }
 
 // 提交作业
 const submitAssignment = async () => {
-  if (!submitForm.value.content.trim()) {
-    ElMessage.warning('请输入作业内容')
+  if (!submitForm.value.content.trim() && fileList.value.length === 0) {
+    ElMessage.warning('请至少填写提交内容或上传文件')
     return
   }
 
@@ -228,14 +261,43 @@ const submitAssignment = async () => {
   }
 
   submitting.value = true
+  uploading.value = true
+  
   try {
+    // 先上传文件
+    const attachmentIds = []
+    for (const file of fileList.value) {
+      if (file.raw) {
+        try {
+          const formData = new FormData()
+          formData.append('file', file.raw)
+          formData.append('uploaderId', currentUser.value.id.toString())
+          
+          const uploadResponse = await uploadFile(formData)
+          attachmentIds.push(uploadResponse.data.id)
+        } catch (error) {
+          console.error('文件上传失败:', error)
+          ElMessage.error(`文件 ${file.name} 上传失败`)
+          uploading.value = false
+          submitting.value = false
+          return
+        }
+      }
+    }
+    
+    uploading.value = false
+
+    // 提交作业
     await submitAssignmentApi(currentAssignment.value.id, {
-      content: submitForm.value.content,
+      content: submitForm.value.content || '',
+      attachmentIds: attachmentIds,
       studentId: currentUser.value.id
     })
+    
     ElMessage.success('提交成功')
     showSubmitDialog.value = false
     submitForm.value.content = ''
+    fileList.value = []
     // 刷新作业列表
     await fetchAssignments()
   } catch (error) {
@@ -243,11 +305,27 @@ const submitAssignment = async () => {
     ElMessage.error(error?.response?.data?.message || '提交失败，请重试')
   } finally {
     submitting.value = false
+    uploading.value = false
   }
 }
 
+// 添加定时刷新，以便获取最新的成绩
+let refreshInterval = null
+
 onMounted(() => {
   fetchAssignments()
+  // 每30秒自动刷新一次，获取最新成绩
+  refreshInterval = setInterval(() => {
+    if (currentUser.value?.id) {
+      fetchAssignments()
+    }
+  }, 30000)
+})
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+  }
 })
 </script>
 

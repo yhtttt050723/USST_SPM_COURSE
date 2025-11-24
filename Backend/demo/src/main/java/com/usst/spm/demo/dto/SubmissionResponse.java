@@ -1,6 +1,7 @@
 package com.usst.spm.demo.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class SubmissionResponse {
     private Long id;
@@ -15,6 +16,38 @@ public class SubmissionResponse {
     private Integer score;
     private String feedback;
     private Boolean released;
+    
+    // 文件列表
+    private List<FileInfo> files;
+    
+    public static class FileInfo {
+        private Long id;
+        private String fileName;
+        private String originalName;
+        private Long fileSize;
+        private String mimeType;
+        
+        public FileInfo() {}
+        
+        public FileInfo(Long id, String fileName, String originalName, Long fileSize, String mimeType) {
+            this.id = id;
+            this.fileName = fileName;
+            this.originalName = originalName;
+            this.fileSize = fileSize;
+            this.mimeType = mimeType;
+        }
+        
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+        public String getFileName() { return fileName; }
+        public void setFileName(String fileName) { this.fileName = fileName; }
+        public String getOriginalName() { return originalName; }
+        public void setOriginalName(String originalName) { this.originalName = originalName; }
+        public Long getFileSize() { return fileSize; }
+        public void setFileSize(Long fileSize) { this.fileSize = fileSize; }
+        public String getMimeType() { return mimeType; }
+        public void setMimeType(String mimeType) { this.mimeType = mimeType; }
+    }
 
     public SubmissionResponse() {
     }
@@ -97,6 +130,14 @@ public class SubmissionResponse {
 
     public void setReleased(Boolean released) {
         this.released = released;
+    }
+
+    public List<FileInfo> getFiles() {
+        return files;
+    }
+
+    public void setFiles(List<FileInfo> files) {
+        this.files = files;
     }
 }
 

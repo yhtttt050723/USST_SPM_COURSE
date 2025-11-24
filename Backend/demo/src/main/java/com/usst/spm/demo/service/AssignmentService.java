@@ -5,10 +5,14 @@ import com.usst.spm.demo.dto.GradeRequest;
 import com.usst.spm.demo.dto.SubmissionRequest;
 import com.usst.spm.demo.dto.SubmissionResponse;
 import com.usst.spm.demo.model.Assignment;
+import com.usst.spm.demo.model.File;
 import com.usst.spm.demo.model.Grade;
 import com.usst.spm.demo.model.Submission;
+import com.usst.spm.demo.model.SubmissionFile;
 import com.usst.spm.demo.repository.AssignmentRepository;
+import com.usst.spm.demo.repository.FileRepository;
 import com.usst.spm.demo.repository.GradeRepository;
+import com.usst.spm.demo.repository.SubmissionFileRepository;
 import com.usst.spm.demo.repository.SubmissionRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -28,14 +32,20 @@ public class AssignmentService {
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
     private final GradeRepository gradeRepository;
+    private final FileRepository fileRepository;
+    private final SubmissionFileRepository submissionFileRepository;
 
     public AssignmentService(
             AssignmentRepository assignmentRepository,
             SubmissionRepository submissionRepository,
-            GradeRepository gradeRepository) {
+            GradeRepository gradeRepository,
+            FileRepository fileRepository,
+            SubmissionFileRepository submissionFileRepository) {
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
         this.gradeRepository = gradeRepository;
+        this.fileRepository = fileRepository;
+        this.submissionFileRepository = submissionFileRepository;
     }
 
     /**
@@ -156,6 +166,25 @@ public class AssignmentService {
             submission.setUpdatedAt(LocalDateTime.now());
             submission.setStatus("SUBMITTED");
             submission = submissionRepository.save(submission);
+            
+            // 处理文件关联
+            if (request.getAttachmentIds() != null && !request.getAttachmentIds().isEmpty()) {
+                // 删除旧的关联
+                List<SubmissionFile> oldFiles = submissionFileRepository.findBySubmissionIdAndDeleted(submission.getId(), 0);
+                for (SubmissionFile oldFile : oldFiles) {
+                    oldFile.setDeleted(1);
+                    submissionFileRepository.save(oldFile);
+                }
+                
+                // 创建新的关联
+                for (Long fileId : request.getAttachmentIds()) {
+                    SubmissionFile submissionFile = new SubmissionFile();
+                    submissionFile.setSubmissionId(submission.getId());
+                    submissionFile.setFileId(fileId);
+                    submissionFileRepository.save(submissionFile);
+                }
+            }
+            
             return convertToSubmissionResponse(submission);
         } else {
             // 创建新提交
@@ -166,6 +195,17 @@ public class AssignmentService {
             submission.setSubmittedAt(LocalDateTime.now());
             submission.setStatus("SUBMITTED");
             submission = submissionRepository.save(submission);
+            
+            // 处理文件关联
+            if (request.getAttachmentIds() != null && !request.getAttachmentIds().isEmpty()) {
+                for (Long fileId : request.getAttachmentIds()) {
+                    SubmissionFile submissionFile = new SubmissionFile();
+                    submissionFile.setSubmissionId(submission.getId());
+                    submissionFile.setFileId(fileId);
+                    submissionFileRepository.save(submissionFile);
+                }
+            }
+            
             return convertToSubmissionResponse(submission);
         }
     }
@@ -304,6 +344,28 @@ public class AssignmentService {
         response.setStatus(submission.getStatus());
         response.setSubmittedAt(submission.getSubmittedAt());
         response.setCreatedAt(submission.getCreatedAt());
+        
+        // 加载文件列表
+        List<SubmissionFile> submissionFiles = submissionFileRepository.findBySubmissionIdAndDeleted(submission.getId(), 0);
+        List<SubmissionResponse.FileInfo> fileInfos = submissionFiles.stream()
+                .map(sf -> {
+                    Optional<File> fileOpt = fileRepository.findById(sf.getFileId());
+                    if (fileOpt.isPresent() && (fileOpt.get().getDeleted() == null || fileOpt.get().getDeleted() == 0)) {
+                        File file = fileOpt.get();
+                        return new SubmissionResponse.FileInfo(
+                                file.getId(),
+                                file.getFileName(),
+                                file.getOriginalName(),
+                                file.getFileSize(),
+                                file.getMimeType()
+                        );
+                    }
+                    return null;
+                })
+                .filter(f -> f != null)
+                .collect(Collectors.toList());
+        response.setFiles(fileInfos);
+        
         return response;
     }
 }

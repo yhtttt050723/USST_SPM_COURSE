@@ -66,6 +66,32 @@ CREATE TABLE IF NOT EXISTS submissions (
   CONSTRAINT fk_sub_student FOREIGN KEY (student_id) REFERENCES users(id)
 );
 
+-- 文件表
+CREATE TABLE IF NOT EXISTS files (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  file_name VARCHAR(255) NOT NULL,
+  original_name VARCHAR(255) NOT NULL,
+  storage_path VARCHAR(512) NOT NULL,
+  mime_type VARCHAR(128),
+  file_size BIGINT,
+  uploader_id BIGINT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  CONSTRAINT fk_file_uploader FOREIGN KEY (uploader_id) REFERENCES users(id)
+);
+
+-- 提交文件关联表
+CREATE TABLE IF NOT EXISTS submission_files (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  submission_id BIGINT NOT NULL,
+  file_id BIGINT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  CONSTRAINT fk_sub_file_submission FOREIGN KEY (submission_id) REFERENCES submissions(id),
+  CONSTRAINT fk_sub_file_file FOREIGN KEY (file_id) REFERENCES files(id)
+);
+
 CREATE TABLE IF NOT EXISTS grades (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   submission_id BIGINT NOT NULL,

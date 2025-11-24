@@ -27,7 +27,10 @@ export function createAssignment(payload) {
  * @param {number} assignmentId - 作业ID
  */
 export function getSubmissions(assignmentId) {
-  return client.get(`/assignments/${assignmentId}/submissions`);
+  console.log('调用 getSubmissions API，assignmentId:', assignmentId)
+  return client.get(`/assignments/${assignmentId}/submissions`, {
+    timeout: 10000 // 增加超时时间
+  });
 }
 
 /**

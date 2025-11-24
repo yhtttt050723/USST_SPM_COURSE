@@ -4,9 +4,12 @@ import com.usst.spm.demo.dto.*;
 import com.usst.spm.demo.model.Assignment;
 import com.usst.spm.demo.model.Grade;
 import com.usst.spm.demo.model.Submission;
+import com.usst.spm.demo.model.SubmissionFile;
 import com.usst.spm.demo.model.User;
 import com.usst.spm.demo.repository.AssignmentRepository;
+import com.usst.spm.demo.repository.FileRepository;
 import com.usst.spm.demo.repository.GradeRepository;
+import com.usst.spm.demo.repository.SubmissionFileRepository;
 import com.usst.spm.demo.repository.SubmissionRepository;
 import com.usst.spm.demo.repository.UserRepository;
 import com.usst.spm.demo.service.AssignmentService;
@@ -33,18 +36,24 @@ public class AssignmentController {
     private final SubmissionRepository submissionRepository;
     private final GradeRepository gradeRepository;
     private final UserRepository userRepository;
+    private final FileRepository fileRepository;
+    private final SubmissionFileRepository submissionFileRepository;
 
     public AssignmentController(
             AssignmentRepository assignmentRepository,
             AssignmentService assignmentService,
             SubmissionRepository submissionRepository,
             GradeRepository gradeRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            FileRepository fileRepository,
+            SubmissionFileRepository submissionFileRepository) {
         this.assignmentRepository = assignmentRepository;
         this.assignmentService = assignmentService;
         this.submissionRepository = submissionRepository;
         this.gradeRepository = gradeRepository;
         this.userRepository = userRepository;
+        this.fileRepository = fileRepository;
+        this.submissionFileRepository = submissionFileRepository;
     }
 
     /**
@@ -85,8 +94,13 @@ public class AssignmentController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long studentId,
             @RequestParam(required = false) String role) {
-        // 如果是教师，返回所有作业（不带学生提交状态）
+        // 如果是教师，返回所有作业（带统计信息）
         if ("TEACHER".equals(role)) {
+            // 获取学生总数（role为STUDENT的用户数）
+            long totalStudents = userRepository.findAll().stream()
+                    .filter(user -> "STUDENT".equals(user.getRole()) && (user.getDeleted() == null || user.getDeleted() == 0))
+                    .count();
+            
             List<Assignment> assignments = assignmentRepository.findByCourseIdAndDeleted(DEFAULT_COURSE_ID, 0);
             List<AssignmentResponse> responses = assignments.stream()
                     .map(assignment -> {
@@ -102,6 +116,26 @@ public class AssignmentController {
                         response.setStatus(assignment.getStatus());
                         response.setCreatedAt(assignment.getCreatedAt());
                         response.setUpdatedAt(assignment.getUpdatedAt());
+                        
+                        // 设置学生总数
+                        response.setTotalStudents((int) totalStudents);
+                        
+                        // 计算提交人数
+                        List<Submission> submissions = submissionRepository.findByAssignmentIdAndDeleted(assignment.getId(), 0);
+                        response.setSubmissionCount(submissions.size());
+                        
+                        // 计算已批改人数（有成绩且已发布的）
+                        long gradedCount = submissions.stream()
+                                .mapToLong(submission -> {
+                                    Optional<Grade> gradeOpt = gradeRepository.findBySubmissionIdAndDeleted(submission.getId(), 0);
+                                    if (gradeOpt.isPresent() && Boolean.TRUE.equals(gradeOpt.get().getReleased())) {
+                                        return 1;
+                                    }
+                                    return 0;
+                                })
+                                .sum();
+                        response.setGradedCount((int) gradedCount);
+                        
                         return response;
                     })
                     .collect(java.util.stream.Collectors.toList());
@@ -151,6 +185,14 @@ public class AssignmentController {
         SubmissionRequest submissionRequest = new SubmissionRequest();
         if (request.containsKey("content")) {
             submissionRequest.setContent(request.get("content").toString());
+        }
+        if (request.containsKey("attachmentIds")) {
+            @SuppressWarnings("unchecked")
+            List<Object> attachmentIdsObj = (List<Object>) request.get("attachmentIds");
+            List<Long> attachmentIds = attachmentIdsObj.stream()
+                    .map(obj -> Long.valueOf(obj.toString()))
+                    .collect(java.util.stream.Collectors.toList());
+            submissionRequest.setAttachmentIds(attachmentIds);
         }
 
         SubmissionResponse response = assignmentService.submitAssignment(id, studentId, submissionRequest);
@@ -225,42 +267,95 @@ public class AssignmentController {
      */
     @GetMapping("/{id}/submissions")
     public ResponseEntity<List<Map<String, Object>>> getSubmissions(@PathVariable Long id) {
-        List<Submission> submissions = submissionRepository.findByAssignmentIdAndDeleted(id, 0);
-        List<Map<String, Object>> responses = submissions.stream()
-                .map(submission -> {
-                    Map<String, Object> response = new java.util.HashMap<>();
-                    response.put("id", submission.getId());
-                    response.put("assignmentId", submission.getAssignmentId());
-                    response.put("studentId", submission.getStudentId());
-                    response.put("content", submission.getContent());
-                    response.put("status", submission.getStatus());
-                    response.put("submittedAt", submission.getSubmittedAt());
-                    response.put("createdAt", submission.getCreatedAt());
-                    
-                    // 查询学生信息
-                    Optional<User> studentOpt = userRepository.findById(submission.getStudentId());
-                    if (studentOpt.isPresent()) {
-                        User student = studentOpt.get();
-                        response.put("studentName", student.getName());
-                        response.put("studentNo", student.getStudentNo());
-                    }
-                    
-                    // 查询成绩
-                    Optional<Grade> gradeOpt = gradeRepository.findBySubmissionIdAndDeleted(submission.getId(), 0);
-                    if (gradeOpt.isPresent()) {
-                        Grade grade = gradeOpt.get();
-                        response.put("score", grade.getScore());
-                        response.put("feedback", grade.getFeedback());
-                        response.put("released", grade.getReleased());
-                        response.put("graded", Boolean.TRUE.equals(grade.getReleased()));
-                    } else {
-                        response.put("graded", false);
-                    }
-                    
-                    return response;
-                })
-                .collect(java.util.stream.Collectors.toList());
-        return ResponseEntity.ok(responses);
+        try {
+            // 验证作业是否存在
+            Optional<Assignment> assignmentOpt = assignmentRepository.findById(id);
+            if (assignmentOpt.isEmpty() || (assignmentOpt.get().getDeleted() != null && assignmentOpt.get().getDeleted() == 1)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "作业不存在");
+            }
+            
+            List<Submission> submissions = submissionRepository.findByAssignmentIdAndDeleted(id, 0);
+            List<Map<String, Object>> responses = submissions.stream()
+                    .map(submission -> {
+                        try {
+                            Map<String, Object> response = new java.util.HashMap<>();
+                            response.put("id", submission.getId());
+                            response.put("assignmentId", submission.getAssignmentId());
+                            response.put("studentId", submission.getStudentId());
+                            response.put("content", submission.getContent() != null ? submission.getContent() : "");
+                            response.put("status", submission.getStatus() != null ? submission.getStatus() : "SUBMITTED");
+                            response.put("submittedAt", submission.getSubmittedAt());
+                            response.put("createdAt", submission.getCreatedAt());
+                            
+                            // 查询学生信息
+                            Optional<User> studentOpt = userRepository.findById(submission.getStudentId());
+                            if (studentOpt.isPresent()) {
+                                User student = studentOpt.get();
+                                response.put("studentName", student.getName() != null ? student.getName() : "");
+                                response.put("studentNo", student.getStudentNo() != null ? student.getStudentNo() : "");
+                            } else {
+                                response.put("studentName", "未知学生");
+                                response.put("studentNo", "");
+                            }
+                            
+                            // 查询成绩
+                            Optional<Grade> gradeOpt = gradeRepository.findBySubmissionIdAndDeleted(submission.getId(), 0);
+                            if (gradeOpt.isPresent()) {
+                                Grade grade = gradeOpt.get();
+                                response.put("score", grade.getScore());
+                                response.put("feedback", grade.getFeedback() != null ? grade.getFeedback() : "");
+                                response.put("released", grade.getReleased() != null ? grade.getReleased() : false);
+                                response.put("graded", Boolean.TRUE.equals(grade.getReleased()));
+                            } else {
+                                response.put("score", null);
+                                response.put("feedback", "");
+                                response.put("released", false);
+                                response.put("graded", false);
+                            }
+                            
+                            // 查询文件列表
+                            List<SubmissionFile> submissionFiles = submissionFileRepository.findBySubmissionIdAndDeleted(submission.getId(), 0);
+                            List<Map<String, Object>> files = submissionFiles.stream()
+                                    .map(sf -> {
+                                        try {
+                                            Optional<com.usst.spm.demo.model.File> fileOpt = fileRepository.findById(sf.getFileId());
+                                            if (fileOpt.isPresent() && (fileOpt.get().getDeleted() == null || fileOpt.get().getDeleted() == 0)) {
+                                                com.usst.spm.demo.model.File file = fileOpt.get();
+                                                Map<String, Object> fileInfo = new java.util.HashMap<>();
+                                                fileInfo.put("id", file.getId());
+                                                fileInfo.put("fileName", file.getFileName() != null ? file.getFileName() : "");
+                                                fileInfo.put("originalName", file.getOriginalName() != null ? file.getOriginalName() : "");
+                                                fileInfo.put("fileSize", file.getFileSize() != null ? file.getFileSize() : 0);
+                                                fileInfo.put("mimeType", file.getMimeType() != null ? file.getMimeType() : "");
+                                                return fileInfo;
+                                            }
+                                            return null;
+                                        } catch (Exception e) {
+                                            System.err.println("处理文件信息时出错: " + e.getMessage());
+                                            return null;
+                                        }
+                                    })
+                                    .filter(f -> f != null)
+                                    .collect(java.util.stream.Collectors.toList());
+                            response.put("files", files != null ? files : new java.util.ArrayList<>());
+                            
+                            return response;
+                        } catch (Exception e) {
+                            System.err.println("处理提交信息时出错: " + e.getMessage());
+                            e.printStackTrace();
+                            return null;
+                        }
+                    })
+                    .filter(r -> r != null)
+                    .collect(java.util.stream.Collectors.toList());
+            return ResponseEntity.ok(responses);
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            System.err.println("获取提交列表时出错: " + e.getMessage());
+            e.printStackTrace();
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "获取提交列表失败: " + e.getMessage());
+        }
     }
 }
 
