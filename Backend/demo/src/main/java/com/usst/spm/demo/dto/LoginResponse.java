@@ -5,15 +5,17 @@ public class LoginResponse {
     private String studentNo;
     private String name;
     private String role;
+    private String token;
 
     public LoginResponse() {
     }
 
-    public LoginResponse(Long id, String studentNo, String name, String role) {
+    public LoginResponse(Long id, String studentNo, String name, String role,String token) {
         this.id = id;
         this.studentNo = studentNo;
         this.name = name;
         this.role = role;
+        this.token = token;
     }
 
     public Long getId() {
@@ -42,6 +44,10 @@ public class LoginResponse {
 
     public String getRole() {
         return role;
+    }
+
+    public String getToken() { // 新增 getToken 方法
+        return token;
     }
 
     public void setRole(String role) {
