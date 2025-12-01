@@ -77,6 +77,7 @@ public class AuthController {
         user.setPassword(req.getPassword()); // 先明文，后续可加密
         user.setRole("STUDENT");
         user.setStatus(1);
+        user.setDeleted(0);
         user = userRepository.save(user);
         userRepository.save(user);
 
