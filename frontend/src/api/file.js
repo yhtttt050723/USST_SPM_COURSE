@@ -1,19 +1,15 @@
-import axios from 'axios';
-
-const client = axios.create({
-  baseURL: 'http://localhost:8080/api',
-  timeout: 30000, // 文件上传可能需要更长时间
-});
+import http from './http';
 
 /**
  * 上传文件
  * @param {FormData} formData - 包含文件和 uploaderId 的 FormData
  */
 export function uploadFile(formData) {
-  return client.post('/files', formData, {
+  return http.post('/files', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    timeout: 30000
   });
 }
 
@@ -22,7 +18,7 @@ export function uploadFile(formData) {
  * @param {number} fileId - 文件ID
  */
 export function downloadFile(fileId) {
-  return client.get(`/files/${fileId}`, {
+  return http.get(`/files/${fileId}`, {
     responseType: 'blob'
   });
 }

@@ -1,9 +1,4 @@
-import axios from 'axios';
-
-const client = axios.create({
-  baseURL: 'http://localhost:8080/api',
-  timeout: 8000,
-});
+import http from './http';
 
 /**
  * 获取作业列表
@@ -11,7 +6,7 @@ const client = axios.create({
  * @param {number} studentId - 学生ID
  */
 export function getAssignments(status = 'all', studentId) {
-  return client.get('/assignments', {
+  return http.get('/assignments', {
     params: { status, studentId }
   });
 }
@@ -22,7 +17,7 @@ export function getAssignments(status = 'all', studentId) {
  * @param {number} studentId - 学生ID
  */
 export function getAssignmentById(id, studentId) {
-  return client.get(`/assignments/${id}`, {
+  return http.get(`/assignments/${id}`, {
     params: { studentId }
   });
 }
@@ -33,7 +28,7 @@ export function getAssignmentById(id, studentId) {
  * @param {object} payload - { content: string, studentId: number }
  */
 export function submitAssignment(id, payload) {
-  return client.post(`/assignments/${id}/submissions`, payload);
+  return http.post(`/assignments/${id}/submissions`, payload);
 }
 
 /**
@@ -42,7 +37,7 @@ export function submitAssignment(id, payload) {
  * @param {number} studentId - 学生ID
  */
 export function getMySubmission(id, studentId) {
-  return client.get(`/assignments/${id}/submissions/me`, {
+  return http.get(`/assignments/${id}/submissions/me`, {
     params: { studentId }
   });
 }
@@ -54,7 +49,7 @@ export function getMySubmission(id, studentId) {
  * @param {object} payload - { score: number, feedback: string, released: boolean, teacherId: number }
  */
 export function gradeSubmission(id, submissionId, payload) {
-  return client.post(`/assignments/${id}/submissions/${submissionId}/grade`, payload);
+  return http.post(`/assignments/${id}/submissions/${submissionId}/grade`, payload);
 }
 
 /**
@@ -62,7 +57,7 @@ export function gradeSubmission(id, submissionId, payload) {
  * @param {number} studentId - 学生ID
  */
 export function getMyGrades(studentId) {
-  return client.get('/assignments/grades/me', {
+  return http.get('/assignments/grades/me', {
     params: { studentId }
   });
 }

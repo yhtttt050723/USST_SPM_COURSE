@@ -1,15 +1,10 @@
-import axios from 'axios';
-
-const client = axios.create({
-  baseURL: 'http://localhost:8080/api',
-  timeout: 8000,
-});
+import http from './http';
 
 /**
  * 获取所有作业（教师端）
  */
 export function getAssignments() {
-  return client.get('/assignments', {
+  return http.get('/assignments', {
     params: { role: 'TEACHER' }
   });
 }
@@ -19,7 +14,7 @@ export function getAssignments() {
  * @param {object} payload - { title, description, dueAt, totalScore, allowResubmit }
  */
 export function createAssignment(payload) {
-  return client.post('/assignments', payload);
+  return http.post('/assignments', payload);
 }
 
 /**
@@ -28,7 +23,7 @@ export function createAssignment(payload) {
  */
 export function getSubmissions(assignmentId) {
   console.log('调用 getSubmissions API，assignmentId:', assignmentId)
-  return client.get(`/assignments/${assignmentId}/submissions`, {
+  return http.get(`/assignments/${assignmentId}/submissions`, {
     timeout: 10000 // 增加超时时间
   });
 }
@@ -40,6 +35,6 @@ export function getSubmissions(assignmentId) {
  * @param {object} payload - { score, feedback, released, teacherId }
  */
 export function gradeSubmission(assignmentId, submissionId, payload) {
-  return client.post(`/assignments/${assignmentId}/submissions/${submissionId}/grade`, payload);
+  return http.post(`/assignments/${assignmentId}/submissions/${submissionId}/grade`, payload);
 }
 
