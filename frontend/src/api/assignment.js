@@ -1,34 +1,35 @@
-import http from './http';
+import request from './request';
 
 /**
  * 获取作业列表
  * @param {string} status - 状态筛选: all, progress, submitted, graded
  * @param {number} studentId - 学生ID
+ * @param {string} role - 用户角色: STUDENT, TEACHER
  */
-export function getAssignments(status = 'all', studentId) {
-  return http.get('/assignments', {
-    params: { status, studentId }
+export function getAssignments(status = 'all', studentId, role) {
+  return request.get('/assignments', {
+    params: { status, studentId, role }
   });
 }
 
 /**
  * 获取作业详情
  * @param {number} id - 作业ID
- * @param {number} studentId - 学生ID
+ * @param {number} studentId - 学生ID（可选）
  */
 export function getAssignmentById(id, studentId) {
-  return http.get(`/assignments/${id}`, {
-    params: { studentId }
+  return request.get(`/assignments/${id}`, {
+    params: studentId ? { studentId } : {}
   });
 }
 
 /**
  * 提交作业
  * @param {number} id - 作业ID
- * @param {object} payload - { content: string, studentId: number }
+ * @param {object} payload - { content: string, studentId: number, attachmentIds: number[] }
  */
 export function submitAssignment(id, payload) {
-  return http.post(`/assignments/${id}/submissions`, payload);
+  return request.post(`/assignments/${id}/submissions`, payload);
 }
 
 /**
@@ -37,7 +38,7 @@ export function submitAssignment(id, payload) {
  * @param {number} studentId - 学生ID
  */
 export function getMySubmission(id, studentId) {
-  return http.get(`/assignments/${id}/submissions/me`, {
+  return request.get(`/assignments/${id}/submissions/me`, {
     params: { studentId }
   });
 }
@@ -49,7 +50,7 @@ export function getMySubmission(id, studentId) {
  * @param {object} payload - { score: number, feedback: string, released: boolean, teacherId: number }
  */
 export function gradeSubmission(id, submissionId, payload) {
-  return http.post(`/assignments/${id}/submissions/${submissionId}/grade`, payload);
+  return request.post(`/assignments/${id}/submissions/${submissionId}/grade`, payload);
 }
 
 /**
@@ -57,7 +58,7 @@ export function gradeSubmission(id, submissionId, payload) {
  * @param {number} studentId - 学生ID
  */
 export function getMyGrades(studentId) {
-  return http.get('/assignments/grades/me', {
+  return request.get('/assignments/grades/me', {
     params: { studentId }
   });
 }

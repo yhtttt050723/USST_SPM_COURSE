@@ -1,9 +1,9 @@
-import http from './http';
+import request from './request';
 
 export function login(payload) {
-  return http.post('/auth/login', payload);
+  return request.post('/auth/login', payload);
 }
 
 export function register(payload) {
-  return http.post('/auth/register', payload);
+  return request.post('/auth/register', payload);
 }
