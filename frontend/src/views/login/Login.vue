@@ -74,7 +74,7 @@
         </el-form-item>
         <el-form-item prop="studentNo">
           <div class="title">学号:</div>
-          <el-input v-model="formModel.studentNo" placeholder="请输入学号">
+          <el-input v-model="formModel.studentNo" placeholder="请输入学号(仅数字)" >
             <template #prefix>
               <el-icon><Avatar /></el-icon>
             </template>
@@ -85,7 +85,7 @@
           <el-input 
             v-model="formModel.password" 
             type="password" 
-            placeholder="请输入密码"
+            placeholder="请输入密码(不少于6位)"
             show-password
           >
             <template #prefix>
