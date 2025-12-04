@@ -2,6 +2,8 @@ package com.usst.spm.demo.controller;
 
 import com.usst.spm.demo.model.File;
 import com.usst.spm.demo.repository.FileRepository;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -26,14 +28,15 @@ import java.util.UUID;
 @CrossOrigin(origins = "*")
 public class FileController {
 
-    private static final String UPLOAD_DIR = "uploads/";
+    @Value("${file.upload-dir}")
+    private String uploadDir;
     private final FileRepository fileRepository;
 
     public FileController(FileRepository fileRepository) {
         this.fileRepository = fileRepository;
         // 确保上传目录存在
         try {
-            Path uploadPath = Paths.get(UPLOAD_DIR);
+            Path uploadPath = Paths.get(uploadDir);
             if (!Files.exists(uploadPath)) {
                 Files.createDirectories(uploadPath);
             }
@@ -69,7 +72,7 @@ public class FileController {
         try {
             // 生成唯一文件名
             String fileName = UUID.randomUUID().toString() + "." + extension;
-            Path filePath = Paths.get(UPLOAD_DIR + fileName);
+            Path filePath = Paths.get(uploadDir, fileName);
             
             // 保存文件
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
