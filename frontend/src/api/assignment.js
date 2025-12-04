@@ -63,3 +63,15 @@ export function getMyGrades(studentId) {
   });
 }
 
+/**
+ * 获取作业的所有提交（教师端）
+ * @param {number} id - 作业ID
+ */
+export function getSubmissions(id) {
+  return request.get(`/assignments/${id}/submissions`);
+}
+
+// 创建新作业
+export function createAssignment(payload) {
+  return request.post('/assignments', payload);
+}

@@ -30,6 +30,7 @@
                   v-for="submitDetail in filteredSubmitDetails"
                   :key="submitDetail.id"
                   :submitDetail="submitDetail"
+                  @click="goToStudentHomework(submitDetail)"
                 />
             </div>
         </div>
@@ -45,7 +46,9 @@ import SubmitDetailBox from '@/components/teacher/homework/SubmitDetailBox.vue'
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const props = defineProps({
     assignmentId: {
         type: Number,
@@ -94,6 +97,14 @@ const fetchSubmissions = async () => {
     } finally {
       loading.value = false
     }
+}
+
+const goToStudentHomework = (submitDetail) => {
+  router.push({ 
+    name: 'TeacherStudentHomework', 
+    params: { submissionId: submitDetail.id },
+    query: { assignmentId: props.assignmentId }
+  })
 }
 
 onMounted(() => {

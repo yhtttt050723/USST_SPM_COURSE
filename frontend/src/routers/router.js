@@ -106,7 +106,13 @@ const router = createRouter({
                 meta: { requiresAuth: true, role: 'TEACHER' }
             },
             {
-                path: '/teacher/homework/studentHomework',
+                path: '/teacher/homework/create',
+                name: 'TeacherCreateHomework',
+                component: () => import('@/views/teacher/homework/CreatedNewAssignment.vue'),
+                meta: { requiresAuth: true, role: 'TEACHER' }
+            },
+            {
+                path: '/teacher/homework/studentHomework/:submissionId',
                 name: 'TeacherStudentHomework',
                 component: () => import('@/views/teacher/homework/StudentHomework.vue'),
                 meta: { requiresAuth: true, role: 'TEACHER' }
@@ -146,8 +152,6 @@ router.beforeEach((to, from, next) => {
   // 直接获取当前用户或从缓存恢复
   const user = userStore.currentUser || userStore.hydrateUserFromCache()
   const userRole = user?.role || ''
-  
-  console.log('路由守卫检查:', { path: to.path, user, userRole })
   
   if (to.path === '/login') {
     if (user) {

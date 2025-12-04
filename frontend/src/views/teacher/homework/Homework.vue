@@ -2,14 +2,14 @@
   <div class="homework-page">
     <el-row class="teacher-homework-header">
       <el-col class="homeworkTitle" :span="14">
-        <el-button class="createNew" type="primary" round> 发布新作业 </el-button>
+        <el-button class="createNew" type="primary" @click="goToCreateHomework" > 发布新作业 </el-button>
       </el-col>
       <el-col class="time" :span="6">截止时间</el-col>
       <el-col class="count" :span="4">提交人数</el-col>
     </el-row>
     <div class="body">
       <!-- 加载状态 -->
-    <div v-if="loading" class="loading">
+    <div v-if="loading" class="loading">  
       <el-skeleton :rows="3" animated />
     </div>
     
@@ -106,6 +106,7 @@ const fetchAssignments = async () => {
   }
 }
 
+
 // 跳转到作业详情
 const goToDetail = (assignmentId) => {
   router.push({
@@ -117,6 +118,10 @@ const goToDetail = (assignmentId) => {
 // 处理筛选变化
 const handleFilterChange = () => {
   // 筛选逻辑已在 computed 中处理
+}
+
+const goToCreateHomework = () => {
+  router.push({ path: '/teacher/homework/create' })
 }
 
 onMounted(() => {

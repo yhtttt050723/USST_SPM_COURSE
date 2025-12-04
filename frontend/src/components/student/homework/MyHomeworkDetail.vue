@@ -29,7 +29,7 @@
           <span class="score-label">我的得分</span>
           <div class="score-box">
             <span class="score-value">{{ submission.score }}</span>
-            <span class="score-total"> / {{ submission.totalScore || 100 }}</span>
+            <span class="score-total"> / {{ assignment.totalScore || 100 }}</span>
           </div>
         </div>
       </div>
@@ -66,6 +66,7 @@
               <el-icon><Document /></el-icon>
               <span class="file-name">{{ file.originalName }}</span>
               <span class="file-size">{{ formatFileSize(file.fileSize) }}</span>
+              <!-- 下载附件的逻辑需要完善 -->
               <el-button type="primary" link size="small">下载</el-button>
             </div>
           </div>
@@ -143,7 +144,7 @@ const isExpired = computed(() => {
 // 点击重新提交按钮
 const handleResubmitClick = () => {
   // 检查是否允许重新提交
-  if (!assignment.value || !assignment.value.allowResubmit) {
+  if (!assignment.value || assignment.value.submissionStatus === 'graded' || !assignment.value.allowResubmit) {
     ElMessage.warning('该作业不允许重新提交')
     return
   }
@@ -177,8 +178,6 @@ const fetchSubmission = async () => {
     // 先获取作业详情（包含提交状态）
     const assignmentResponse = await getAssignmentById(props.assignmentId, userId)
     assignment.value = assignmentResponse.data
-    console.log('作业信息:', assignment.value)
-    console.log('提交状态:', assignment.value.submissionStatus)
 
     const submissionStatus = (assignment.value.submissionStatus || '').toLowerCase()
     
@@ -250,11 +249,11 @@ onMounted(() => {
 }
 
 .score-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f8fafc;
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 20px;
-  color: white;
+  color: #868686;
 }
 
 .score-display {
