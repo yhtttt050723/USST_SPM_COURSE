@@ -159,3 +159,48 @@ INSERT INTO users (student_no, name, password, role, status)
 VALUES ('2335062224', '闫鹤天', '123456', 'STUDENT', 1)
 ON DUPLICATE KEY UPDATE name = VALUES(name), password = VALUES(password), role = VALUES(role), status = VALUES(status);
 
+--6讨论与回复表
+CREATE TABLE discussions (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  course_id BIGINT NOT NULL,
+  author_id BIGINT NOT NULL,
+  title VARCHAR(255),
+  content TEXT,
+  reply_count INT DEFAULT 0,
+  view_count INT DEFAULT 0,
+  is_pinned TINYINT(1) DEFAULT 0,
+  is_locked TINYINT(1) DEFAULT 0,
+  created_at DATETIME,
+  updated_at DATETIME,
+  deleted TINYINT(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE discussion_replies (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  discussion_id BIGINT NOT NULL,
+  author_id BIGINT NOT NULL,
+  parent_reply_id BIGINT NULL,
+  content TEXT,
+  created_at DATETIME,
+  updated_at DATETIME,
+  deleted TINYINT(1) DEFAULT 0,
+  CONSTRAINT fk_discussion_reply_discussion
+    FOREIGN KEY (discussion_id) REFERENCES discussions(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_discussion_reply_parent
+    FOREIGN KEY (parent_reply_id) REFERENCES discussion_replies(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--7公告表
+CREATE TABLE announcements (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  course_id BIGINT NOT NULL,
+  author_id BIGINT NOT NULL,
+  title VARCHAR(255),
+  content TEXT,
+  is_pinned TINYINT(1) DEFAULT 0,
+  created_at DATETIME,
+  updated_at DATETIME,
+  deleted TINYINT(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
