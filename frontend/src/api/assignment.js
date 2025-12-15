@@ -1,39 +1,35 @@
-import axios from 'axios';
-
-const client = axios.create({
-  baseURL: 'http://localhost:8080/api',
-  timeout: 8000,
-});
+import request from './request';
 
 /**
  * 获取作业列表
  * @param {string} status - 状态筛选: all, progress, submitted, graded
  * @param {number} studentId - 学生ID
+ * @param {string} role - 用户角色: STUDENT, TEACHER
  */
-export function getAssignments(status = 'all', studentId) {
-  return client.get('/assignments', {
-    params: { status, studentId }
+export function getAssignments(status = 'all', studentId, role) {
+  return request.get('/assignments', {
+    params: { status, studentId, role }
   });
 }
 
 /**
  * 获取作业详情
  * @param {number} id - 作业ID
- * @param {number} studentId - 学生ID
+ * @param {number} studentId - 学生ID（可选）
  */
 export function getAssignmentById(id, studentId) {
-  return client.get(`/assignments/${id}`, {
-    params: { studentId }
+  return request.get(`/assignments/${id}`, {
+    params: studentId ? { studentId } : {}
   });
 }
 
 /**
  * 提交作业
  * @param {number} id - 作业ID
- * @param {object} payload - { content: string, studentId: number }
+ * @param {object} payload - { content: string, studentId: number, attachmentIds: number[] }
  */
 export function submitAssignment(id, payload) {
-  return client.post(`/assignments/${id}/submissions`, payload);
+  return request.post(`/assignments/${id}/submissions`, payload);
 }
 
 /**
@@ -42,7 +38,7 @@ export function submitAssignment(id, payload) {
  * @param {number} studentId - 学生ID
  */
 export function getMySubmission(id, studentId) {
-  return client.get(`/assignments/${id}/submissions/me`, {
+  return request.get(`/assignments/${id}/submissions/me`, {
     params: { studentId }
   });
 }
@@ -54,7 +50,7 @@ export function getMySubmission(id, studentId) {
  * @param {object} payload - { score: number, feedback: string, released: boolean, teacherId: number }
  */
 export function gradeSubmission(id, submissionId, payload) {
-  return client.post(`/assignments/${id}/submissions/${submissionId}/grade`, payload);
+  return request.post(`/assignments/${id}/submissions/${submissionId}/grade`, payload);
 }
 
 /**
@@ -62,8 +58,20 @@ export function gradeSubmission(id, submissionId, payload) {
  * @param {number} studentId - 学生ID
  */
 export function getMyGrades(studentId) {
-  return client.get('/assignments/grades/me', {
+  return request.get('/assignments/grades/me', {
     params: { studentId }
   });
 }
 
+/**
+ * 获取作业的所有提交（教师端）
+ * @param {number} id - 作业ID
+ */
+export function getSubmissions(id) {
+  return request.get(`/assignments/${id}/submissions`);
+}
+
+// 创建新作业
+export function createAssignment(payload) {
+  return request.post('/assignments', payload);
+}

@@ -1,12 +1,18 @@
 <script setup>
 import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/useUserStore'
 
-const { hydrateUserFromCache } = useUserStore()
+const userStore = useUserStore()
+const { hydrateUserFromCache } = userStore
 
 onMounted(() => {
   hydrateUserFromCache()
+  if (userStore.token) {
+    userStore.fetchUserInfo().catch(error => {
+      console.log('自动登录失败:', error)
+    })
+  }
 })
 </script>
 
