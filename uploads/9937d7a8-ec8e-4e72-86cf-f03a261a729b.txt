@@ -1,0 +1,2 @@
+MLP	best_test_acc=0.9768	final_test_acc=0.9738	time_ms=72035.1
+CNN	best_test_acc=0.9901	final_test_acc=0.9901	time_ms=123539.9

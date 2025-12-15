@@ -115,10 +115,24 @@ const fetchAssignments = async () => {
   loading.value = true
   try {
     const response = await getAssignments('all', userId.value, 'STUDENT')
-    rawAssignments.value = response.data || []
+    console.log('获取作业列表响应:', response)
+    
+    // 处理响应数据：可能是数组直接返回，也可能是 {data: []} 格式
+    if (Array.isArray(response)) {
+      // 直接返回数组
+      rawAssignments.value = response
+    } else if (response && response.data && Array.isArray(response.data)) {
+      // 标准格式：{code, data: []}
+      rawAssignments.value = response.data
+    } else {
+      console.warn('响应数据格式异常:', response)
+      rawAssignments.value = []
+    }
+    
+    console.log('解析后的作业列表:', rawAssignments.value)
   } catch (error) {
     console.error('获取作业列表失败:', error)
-    ElMessage.error('获取作业列表失败')
+    ElMessage.error(error.message || '获取作业列表失败')
     rawAssignments.value = []
   } finally {
     loading.value = false
@@ -139,6 +153,12 @@ const handleFilterChange = () => {
 }
 
 onMounted(() => {
+  // 确保从缓存恢复用户信息
+  if (!userStore.currentUser) {
+    userStore.hydrateUserFromCache()
+  }
+  console.log('当前用户信息:', userStore.currentUser)
+  console.log('用户ID:', userId.value)
   fetchAssignments()
 })
 </script>

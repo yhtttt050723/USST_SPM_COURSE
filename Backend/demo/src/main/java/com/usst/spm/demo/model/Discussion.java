@@ -1,7 +1,6 @@
 package com.usst.spm.demo.model;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -18,22 +17,29 @@ public class Discussion {
     @Column(name = "author_id", nullable = false)
     private Long authorId;
 
+    @Column(name = "author_role", nullable = false)
+    private String authorRole;
+
+    @Column(nullable = false)
     private String title;
 
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "reply_count")
+    @Column(name = "status", nullable = false)
+    private String status;
+
+    @Column(name = "is_pinned", columnDefinition = "TINYINT DEFAULT 0")
+    private Integer pinned;
+
+    @Column(name = "allow_comment", columnDefinition = "TINYINT NOT NULL DEFAULT 1")
+    private Integer allowComment;
+
+    @Column(name = "reply_count", columnDefinition = "INT DEFAULT 0")
     private Integer replyCount;
 
-    @Column(name = "view_count")
-    private Integer viewCount;
-
-    @Column(name = "is_pinned")
-    private Boolean isPinned;
-
-    @Column(name = "is_locked")
-    private Boolean isLocked;
+    @Column(name = "last_reply_at")
+    private LocalDateTime lastReplyAt;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -41,18 +47,32 @@ public class Discussion {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "created_by")
+    private Long createdBy;
+
+    @Column(name = "updated_by")
+    private Long updatedBy;
+
+    @Column(columnDefinition = "TINYINT NOT NULL DEFAULT 0")
     private Integer deleted;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
     public Discussion() {
-        this.replyCount = 0;
-        this.viewCount = 0;
-        this.isPinned = false;
-        this.isLocked = false;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        this.status = "OPEN";
+        this.pinned = 0;
+        this.allowComment = 1;
+        this.replyCount = 0;
         this.deleted = 0;
     }
 
+    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -93,36 +113,20 @@ public class Discussion {
         this.content = content;
     }
 
-    public Integer getReplyCount() {
-        return replyCount;
+    public Integer getPinned() {
+        return pinned;
     }
 
-    public void setReplyCount(Integer replyCount) {
-        this.replyCount = replyCount;
+    public void setPinned(Integer pinned) {
+        this.pinned = pinned;
     }
 
-    public Integer getViewCount() {
-        return viewCount;
+    public Integer getAllowComment() {
+        return allowComment;
     }
 
-    public void setViewCount(Integer viewCount) {
-        this.viewCount = viewCount;
-    }
-
-    public Boolean getIsPinned() {
-        return isPinned;
-    }
-
-    public void setIsPinned(Boolean isPinned) {
-        this.isPinned = isPinned;
-    }
-
-    public Boolean getIsLocked() {
-        return isLocked;
-    }
-
-    public void setIsLocked(Boolean isLocked) {
-        this.isLocked = isLocked;
+    public void setAllowComment(Integer allowComment) {
+        this.allowComment = allowComment;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -147,6 +151,70 @@ public class Discussion {
 
     public void setDeleted(Integer deleted) {
         this.deleted = deleted;
+    }
+
+    public String getAuthorRole() {
+        return authorRole;
+    }
+
+    public void setAuthorRole(String authorRole) {
+        this.authorRole = authorRole;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Integer getReplyCount() {
+        return replyCount;
+    }
+
+    public void setReplyCount(Integer replyCount) {
+        this.replyCount = replyCount;
+    }
+
+    public LocalDateTime getLastReplyAt() {
+        return lastReplyAt;
+    }
+
+    public void setLastReplyAt(LocalDateTime lastReplyAt) {
+        this.lastReplyAt = lastReplyAt;
+    }
+
+    public Long getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(Long createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public Long getUpdatedBy() {
+        return updatedBy;
+    }
+
+    public void setUpdatedBy(Long updatedBy) {
+        this.updatedBy = updatedBy;
+    }
+
+    public LocalDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public Long getDeletedBy() {
+        return deletedBy;
+    }
+
+    public void setDeletedBy(Long deletedBy) {
+        this.deletedBy = deletedBy;
     }
 }
 

@@ -69,11 +69,15 @@ const loading = ref(false)
 const currentUser = computed(() => userStore.currentUser || {})
 const userId = computed(() => currentUser.value.id)
 
-// 计算属性：获取待办作业（submissionStatus 为 'progress' 的作业）
+// 计算属性：获取待办作业（未提交/进行中）
 const pendingAssignments = computed(() => {
   return assignments.value
-    .filter(assignment => assignment.submissionStatus === 'progress')
-    .sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt)) // 按截止时间排序
+    .filter((assignment) => {
+      const status = (assignment.submissionStatus || assignment.status || '').toUpperCase()
+      // 未提交/进行中/默认状态视为待办；已提交/已批改/已完成不再显示
+      return status === '' || status === 'PROGRESS' || status === 'ONGOING' || status === 'NOT_SUBMITTED'
+    })
+    .sort((a, b) => new Date(a.dueAt || 0) - new Date(b.dueAt || 0)) // 按截止时间排序
 })
 
 // 计算属性：获取最近的三条待办作业
@@ -91,7 +95,8 @@ const fetchAssignments = async () => {
   loading.value = true
   try {
     const response = await getAssignments('all', userId.value, 'STUDENT')
-    assignments.value = response.data || []
+    const raw = response?.data || response || []
+    assignments.value = Array.isArray(raw?.content) ? raw.content : Array.isArray(raw) ? raw : []
   } catch (error) {
     console.error('获取作业数据失败:', error)
     // 静默失败，不显示错误提示，只在控制台记录

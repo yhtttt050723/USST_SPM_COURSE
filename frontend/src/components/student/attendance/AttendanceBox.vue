@@ -1,17 +1,34 @@
 <template>
   <el-row class="box">
     <el-col class="time-box" :span="16">
-        <div class="time">出勤时间</div>
+      <div class="time">{{ timeText }}</div>
     </el-col>
     <el-col class="status-box" :span="8">
-        <div class="status">出勤状态</div>
+      <div class="status">{{ statusText }}</div>
     </el-col>
-
   </el-row>
 </template>
 
 <script setup>
+import { computed } from 'vue';
+import dayjs from 'dayjs';
+const props = defineProps({
+  record: {
+    type: Object,
+    default: () => ({})
+  }
+});
 
+const timeText = computed(() => {
+  if (!props.record?.checkinTime) return '--';
+  return dayjs(props.record.checkinTime).format('YYYY-MM-DD HH:mm');
+});
+
+const statusText = computed(() => {
+  if (!props.record) return '—';
+  // 后端字段 result/status 兼容
+  return props.record.result || props.record.status || '—';
+});
 </script>
 
 <style scoped>

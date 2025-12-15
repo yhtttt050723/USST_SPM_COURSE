@@ -174,25 +174,50 @@ const fetchSubmission = async () => {
   }
 
   loading.value = true
- try {
+  try {
     // 先获取作业详情（包含提交状态）
     const assignmentResponse = await getAssignmentById(props.assignmentId, userId)
-    assignment.value = assignmentResponse.data
+    console.log('获取作业详情响应:', assignmentResponse)
+    
+    // 处理作业详情响应
+    if (assignmentResponse && assignmentResponse.id) {
+      assignment.value = assignmentResponse
+    } else if (assignmentResponse && assignmentResponse.data && assignmentResponse.data.id) {
+      assignment.value = assignmentResponse.data
+    } else {
+      console.warn('作业详情响应数据格式异常:', assignmentResponse)
+      assignment.value = null
+    }
 
-    const submissionStatus = (assignment.value.submissionStatus || '').toLowerCase()
+    const submissionStatus = (assignment.value?.submissionStatus || '').toLowerCase()
     
     if (submissionStatus === 'submitted' || submissionStatus === 'graded') {
       try {
         const submissionResponse = await getMySubmission(props.assignmentId, userId)
-        submission.value = submissionResponse.data
+        console.log('获取我的提交响应:', submissionResponse)
+        
+        // 处理提交响应
+        if (submissionResponse && submissionResponse.id) {
+          submission.value = submissionResponse
+        } else if (submissionResponse && submissionResponse.data && submissionResponse.data.id) {
+          submission.value = submissionResponse.data
+        } else {
+          console.warn('提交响应数据格式异常:', submissionResponse)
+          submission.value = null
+        }
       } catch (error) {
+        console.error('获取我的提交失败:', error)
         submission.value = null
       }
     } else {
       submission.value = null
     }
+    
+    console.log('解析后的作业详情:', assignment.value)
+    console.log('解析后的提交详情:', submission.value)
   } catch (error) {
-    ElMessage.error('加载失败，请重试')
+    console.error('加载失败:', error)
+    ElMessage.error(error.message || '加载失败，请重试')
   } finally {
     loading.value = false
   }

@@ -23,6 +23,9 @@ public class Submission {
 
     private String status;
 
+    @Column(name = "resubmit_count")
+    private Integer resubmitCount;
+
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
@@ -39,6 +42,7 @@ public class Submission {
         this.updatedAt = LocalDateTime.now();
         this.status = "SUBMITTED";
         this.deleted = 0;
+        this.resubmitCount = 0;
     }
 
     public Long getId() {
@@ -111,6 +115,14 @@ public class Submission {
 
     public void setDeleted(Integer deleted) {
         this.deleted = deleted;
+    }
+
+    public Integer getResubmitCount() {
+        return resubmitCount;
+    }
+
+    public void setResubmitCount(Integer resubmitCount) {
+        this.resubmitCount = resubmitCount;
     }
 }
 

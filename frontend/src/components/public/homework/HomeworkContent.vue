@@ -95,18 +95,37 @@ const fetchAssignment = async () => {
   if (!props.assignmentId) return
   
   const userId = user.value.id
-  if (!userId) {
+  const userRole = user.value.role
+  
+  // 学生端需要userId，教师端不需要
+  if (!userId && userRole !== 'TEACHER') {
     ElMessage.warning('请先登录')
     return
   }
 
   loading.value = true
   try {
-    const response = await getAssignmentById(props.assignmentId, userId)
-    assignment.value = response.data
+    // 教师端不传studentId，学生端传studentId
+    const studentId = userRole === 'TEACHER' ? null : userId
+    const response = await getAssignmentById(props.assignmentId, studentId)
+    console.log('获取作业详情响应:', response)
+    
+    // 处理响应数据：可能是直接返回对象，也可能是 {data: {}} 格式
+    if (response && response.id) {
+      // 直接返回AssignmentResponse对象
+      assignment.value = response
+    } else if (response && response.data && response.data.id) {
+      // 标准格式：{code, data: AssignmentResponse}
+      assignment.value = response.data
+    } else {
+      console.warn('响应数据格式异常:', response)
+      assignment.value = null
+    }
+    
+    console.log('解析后的作业详情:', assignment.value)
   } catch (error) {
     console.error('获取作业详情失败:', error)
-    ElMessage.error('获取作业详情失败')
+    ElMessage.error(error.message || '获取作业详情失败')
     assignment.value = null
   } finally {
     loading.value = false

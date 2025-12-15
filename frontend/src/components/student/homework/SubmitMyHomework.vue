@@ -150,9 +150,21 @@ const handleSubmit = async () => {
           formData.append('uploaderId', userId.toString())
           
           const uploadResponse = await uploadFile(formData)
-          // 后端直接返回文件信息对象（不是标准的 {code, data} 格式）
-          if (uploadResponse.data && uploadResponse.data.id) {
-            attachmentIds.push(uploadResponse.data.id)
+          // 兼容两种返回格式：
+          // 1) 直接返回文件对象 { id, fileName, ... }
+          // 2) 标准格式 { code, data: { id, fileName, ... } }
+          let fileId = null
+          if (uploadResponse && uploadResponse.id) {
+            fileId = uploadResponse.id
+          } else if (uploadResponse && uploadResponse.data && uploadResponse.data.id) {
+            fileId = uploadResponse.data.id
+          }
+          
+          if (fileId) {
+            attachmentIds.push(fileId)
+          } else {
+            console.warn('上传响应缺少文件ID，响应内容:', uploadResponse)
+            ElMessage.error(`文件 ${file.name} 上传成功但未返回文件ID`)
           }
         } catch (error) {
           console.error('文件上传失败:', error)

@@ -15,6 +15,11 @@ public class AssignmentResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
+    // 版本化字段
+    private Integer version; // 版本号
+    private Long originId; // 原始作业ID（同一作业链路的根ID）
+    private LocalDateTime publishedAt; // 发布时间
+    
     // 学生视角：我的提交状态和成绩
     private String submissionStatus; // progress, submitted, graded
     private Integer score;
@@ -171,6 +176,30 @@ public class AssignmentResponse {
 
     public void setGradedCount(Integer gradedCount) {
         this.gradedCount = gradedCount;
+    }
+
+    public Integer getVersion() {
+        return version;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
+    }
+
+    public Long getOriginId() {
+        return originId;
+    }
+
+    public void setOriginId(Long originId) {
+        this.originId = originId;
+    }
+
+    public LocalDateTime getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(LocalDateTime publishedAt) {
+        this.publishedAt = publishedAt;
     }
 }
 

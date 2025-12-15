@@ -34,6 +34,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getAssignments } from '@/api/assignment'
+import { getMyAttendance } from '@/api/attendance'
 import { useUserStore } from '@/stores/useUserStore'
 
 const userStore = useUserStore()
@@ -43,7 +44,7 @@ const currentUser = computed(() => userStore.currentUser || {})
 const totalAssignments = ref(0)
 const submittedCount = ref(0)
 
-// 出勤统计数据（暂时使用模拟数据）
+// 出勤统计数据
 const totalAttendance = ref(0)
 const attendanceCount = ref(0)
 
@@ -73,23 +74,43 @@ const fetchAssignmentStats = async () => {
 
         // 获取作业列表（包含提交状态）
         const response = await getAssignments('all', userId, 'STUDENT')
-        const assignments = response.data || []
+        const raw = response?.data || response || []
+        const assignments = Array.isArray(raw?.content) ? raw.content : Array.isArray(raw) ? raw : []
         
         // 统计总作业数
         totalAssignments.value = assignments.length
         
         // 统计已提交作业数（状态为 submitted 或 graded）
         submittedCount.value = assignments.filter(assignment => {
-            const status = (assignment.submissionStatus || '').toLowerCase()
-            return status === 'submitted' || status === 'graded'
+            const status = (assignment.submissionStatus || assignment.status || '').toUpperCase()
+            return status === 'SUBMITTED' || status === 'GRADED' || status === 'FINISHED'
         }).length
     } catch (error) {
         console.error('获取作业统计失败:', error)
     }
 }
 
+// 获取出勤统计数据（使用学生自己的签到记录）
+const fetchAttendanceStats = async () => {
+    try {
+        const res = await getMyAttendance({ page: 0, size: 100 })
+        const data = res?.data || res || {}
+        const records = data.content || data || []
+        const list = Array.isArray(records) ? records : []
+        // 总出勤次数 = 记录总数
+        totalAttendance.value = data.totalElements ?? list.length
+        // 已出勤（成功）次数
+        attendanceCount.value = list.filter(r => (r.result || r.status || '').toUpperCase() === 'SUCCESS').length
+    } catch (error) {
+        console.error('获取出勤统计失败:', error)
+        totalAttendance.value = 0
+        attendanceCount.value = 0
+    }
+}
+
 onMounted(() => {
     fetchAssignmentStats()
+    fetchAttendanceStats()
 })
 </script>
     

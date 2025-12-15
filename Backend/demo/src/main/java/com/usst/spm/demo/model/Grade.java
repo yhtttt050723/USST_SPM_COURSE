@@ -23,6 +23,9 @@ public class Grade {
     @Column(columnDefinition = "TEXT")
     private String feedback;
 
+    @Column(name = "change_reason", columnDefinition = "TEXT")
+    private String changeReason;
+
     private Boolean released;
 
     @Column(name = "created_at")
@@ -110,6 +113,14 @@ public class Grade {
 
     public void setDeleted(Integer deleted) {
         this.deleted = deleted;
+    }
+
+    public String getChangeReason() {
+        return changeReason;
+    }
+
+    public void setChangeReason(String changeReason) {
+        this.changeReason = changeReason;
     }
 }
 

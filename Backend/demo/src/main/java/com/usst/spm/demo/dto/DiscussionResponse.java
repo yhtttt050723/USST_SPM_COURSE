@@ -1,21 +1,33 @@
 package com.usst.spm.demo.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class DiscussionResponse {
     private Long id;
     private Long courseId;
     private Long authorId;
+    private String authorRole;
     private String authorName;
-    private String authorNo;
+    private String authorStudentNo;
     private String title;
     private String content;
+    private String status;
+    private Integer pin;
+    private Integer allowComment;
+    private Integer deleted;
     private Integer replyCount;
-    private Integer viewCount;
-    private Boolean isPinned;
-    private Boolean isLocked;
+    private LocalDateTime lastReplyAt;
+    private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Integer commentCount;
+    private List<CommentResponse> comments;
+    // 权限标识
+    private Boolean canEdit;
+    private Boolean canDelete;
+    private Boolean canReply;
+    private Boolean canToggleComment;
 
     public Long getId() {
         return id;
@@ -49,12 +61,12 @@ public class DiscussionResponse {
         this.authorName = authorName;
     }
 
-    public String getAuthorNo() {
-        return authorNo;
+    public String getAuthorStudentNo() {
+        return authorStudentNo;
     }
 
-    public void setAuthorNo(String authorNo) {
-        this.authorNo = authorNo;
+    public void setAuthorStudentNo(String authorStudentNo) {
+        this.authorStudentNo = authorStudentNo;
     }
 
     public String getTitle() {
@@ -73,6 +85,30 @@ public class DiscussionResponse {
         this.content = content;
     }
 
+    public Integer getPin() {
+        return pin;
+    }
+
+    public void setPin(Integer pin) {
+        this.pin = pin;
+    }
+
+    public Integer getAllowComment() {
+        return allowComment;
+    }
+
+    public void setAllowComment(Integer allowComment) {
+        this.allowComment = allowComment;
+    }
+
+    public Integer getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Integer deleted) {
+        this.deleted = deleted;
+    }
+
     public Integer getReplyCount() {
         return replyCount;
     }
@@ -81,28 +117,36 @@ public class DiscussionResponse {
         this.replyCount = replyCount;
     }
 
-    public Integer getViewCount() {
-        return viewCount;
+    public LocalDateTime getLastReplyAt() {
+        return lastReplyAt;
     }
 
-    public void setViewCount(Integer viewCount) {
-        this.viewCount = viewCount;
+    public void setLastReplyAt(LocalDateTime lastReplyAt) {
+        this.lastReplyAt = lastReplyAt;
     }
 
-    public Boolean getIsPinned() {
-        return isPinned;
+    public LocalDateTime getDeletedAt() {
+        return deletedAt;
     }
 
-    public void setIsPinned(Boolean isPinned) {
-        this.isPinned = isPinned;
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
     }
 
-    public Boolean getIsLocked() {
-        return isLocked;
+    public String getAuthorRole() {
+        return authorRole;
     }
 
-    public void setIsLocked(Boolean isLocked) {
-        this.isLocked = isLocked;
+    public void setAuthorRole(String authorRole) {
+        this.authorRole = authorRole;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -119,6 +163,54 @@ public class DiscussionResponse {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getCommentCount() {
+        return commentCount;
+    }
+
+    public void setCommentCount(Integer commentCount) {
+        this.commentCount = commentCount;
+    }
+
+    public List<CommentResponse> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<CommentResponse> comments) {
+        this.comments = comments;
+    }
+
+    public Boolean getCanEdit() {
+        return canEdit;
+    }
+
+    public void setCanEdit(Boolean canEdit) {
+        this.canEdit = canEdit;
+    }
+
+    public Boolean getCanDelete() {
+        return canDelete;
+    }
+
+    public void setCanDelete(Boolean canDelete) {
+        this.canDelete = canDelete;
+    }
+
+    public Boolean getCanReply() {
+        return canReply;
+    }
+
+    public void setCanReply(Boolean canReply) {
+        this.canReply = canReply;
+    }
+
+    public Boolean getCanToggleComment() {
+        return canToggleComment;
+    }
+
+    public void setCanToggleComment(Boolean canToggleComment) {
+        this.canToggleComment = canToggleComment;
     }
 }
 

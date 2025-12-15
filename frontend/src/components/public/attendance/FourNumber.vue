@@ -1,14 +1,26 @@
 <template>
   <div class="number-box">
-    <div class="outbox"><div class="one">1</div></div>
-    <div class="outbox"><div class="two">2</div></div>
-    <div class="outbox"><div class="three">3</div></div>
-    <div class="outbox"><div class="four">4</div></div>
+    <div class="outbox" v-for="(digit, idx) in digits" :key="idx">
+      <div class="digit">{{ digit || '-' }}</div>
+    </div>
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 
+const props = defineProps({
+  code: {
+    type: String,
+    default: ''
+  }
+})
+
+const digits = computed(() => {
+  const chars = (props.code || '').slice(0, 4).split('')
+  while (chars.length < 4) chars.push('')
+  return chars
+})
 </script>
 
 <style scoped>
@@ -25,11 +37,13 @@
     border-radius: 10px;
     margin: 0px 7px;
 }
-.one, .two, .three, .four {
-    display: inline-block;
-    font-size: 55px;
-    color: white;
-    margin: 0px 6px;
-    line-height: 85px;
+.digit {
+  display: inline-block;
+  font-size: 48px;
+  color: white;
+  margin: 0px 6px;
+  line-height: 85px;
+  width: 100%;
+  text-align: center;
 }
 </style>

@@ -49,30 +49,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Bell, ArrowRight, Clock } from '@element-plus/icons-vue'
-import { getAnnouncements } from '@/api/course'
 
 const loading = ref(false)
 const latestAnnouncement = ref(null)
 const dialogVisible = ref(false)
 
-// 获取最新的一条公告
-const fetchLatestAnnouncement = async () => {
-  loading.value = true
-  try {
-    const response = await getAnnouncements()
-    // 获取第一条公告（最新的）
-    const announcements = response.data || []
-    if (announcements.length > 0) {
-      latestAnnouncement.value = announcements[0]
-    }
-  } catch (error) {
-    // API 失败时不显示错误，保持 latestAnnouncement 为 null
-  } finally {
-    loading.value = false
-  }
-}
-
-// 使用默认公告
+// 使用默认公告（后端已移除公告接口，避免 404 日志）
 const useDefaultAnnouncement = () => {
   latestAnnouncement.value = {
     id: 1,
@@ -80,6 +62,7 @@ const useDefaultAnnouncement = () => {
     content: '各位同学好，本周四下午将进行期中项目检查，请提前准备好演示材料和相关文档。检查内容包括：1. 项目进度展示 2. 代码质量评审 3. 文档完整性检查。',
     createdAt: new Date().toISOString()
   }
+  loading.value = false
 }
 
 // 格式化时间
@@ -126,7 +109,7 @@ const showDetail = () => {
 }
 
 onMounted(() => {
-  fetchLatestAnnouncement()
+  useDefaultAnnouncement()
 })
 </script>
 

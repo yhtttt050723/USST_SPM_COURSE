@@ -1,11 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Login from '@/views/Login.vue'
 import Home from '@/views/Home.vue'
+import Discussion from '@/views/Discussion.vue'
+import DiscussionDetail from '@/views/public/discussion/DiscussionDetail.vue'
 
 const routes = [
   { path: '/', redirect: '/login' },
   { path: '/login', component: Login },
-  { path: '/main', component: Home }
+  { path: '/main', component: Home },
+  { path: '/discussion', component: Discussion },
+  { path: '/discussion/:id', component: DiscussionDetail, name: 'discussion-detail' }
 ]
 
 const router = createRouter({

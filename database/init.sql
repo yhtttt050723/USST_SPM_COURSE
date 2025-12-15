@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
   student_no VARCHAR(32) NOT NULL UNIQUE,
   name VARCHAR(64) NOT NULL,
   password VARCHAR(255) DEFAULT NULL,
-  role ENUM('STUDENT','TEACHER') NOT NULL DEFAULT 'STUDENT',
+  role ENUM('STUDENT','TEACHER','ADMIN') NOT NULL DEFAULT 'STUDENT',
   avatar_url VARCHAR(255),
   status TINYINT NOT NULL DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS course (
   CONSTRAINT fk_course_teacher FOREIGN KEY (teacher_id) REFERENCES users(id)
 );
 
--- 3. 作业与提交
+-- 作业表（含版本化与审计字段）
 CREATE TABLE IF NOT EXISTS assignments (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   course_id BIGINT NOT NULL,
@@ -44,11 +44,22 @@ CREATE TABLE IF NOT EXISTS assignments (
   type VARCHAR(32),
   total_score INT DEFAULT 100,
   allow_resubmit TINYINT DEFAULT 0,
+  max_resubmit_count INT DEFAULT 0,
   due_at DATETIME,
-  status VARCHAR(16) DEFAULT 'ONGOING',
+  -- 版本化字段
+  version INT DEFAULT 1,
+  origin_id BIGINT,
+  parent_assignment_id BIGINT,
+  published_at DATETIME,
+  -- 状态：DRAFT / PUBLISHED / CLOSED / ARCHIVED
+  status VARCHAR(16) DEFAULT 'DRAFT',
+  -- 审计字段
+  created_by BIGINT,
+  updated_by BIGINT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
+  deleted_at DATETIME,
   CONSTRAINT fk_assign_course FOREIGN KEY (course_id) REFERENCES course(id)
 );
 
@@ -59,6 +70,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   content LONGTEXT,
   status VARCHAR(16) DEFAULT 'SUBMITTED',
   submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  resubmit_count INT DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
@@ -98,6 +110,7 @@ CREATE TABLE IF NOT EXISTS grades (
   scorer_id BIGINT,
   score INT,
   feedback TEXT,
+  change_reason TEXT,
   released TINYINT DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -106,19 +119,57 @@ CREATE TABLE IF NOT EXISTS grades (
   CONSTRAINT fk_grade_scorer FOREIGN KEY (scorer_id) REFERENCES users(id)
 );
 
+-- 作业附件表
+CREATE TABLE IF NOT EXISTS assignment_files (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  assignment_id BIGINT NOT NULL,
+  file_id BIGINT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  CONSTRAINT fk_assignment_file_assignment FOREIGN KEY (assignment_id) REFERENCES assignments(id),
+  CONSTRAINT fk_assignment_file_file FOREIGN KEY (file_id) REFERENCES files(id)
+);
+
+-- 成绩变更历史
+CREATE TABLE IF NOT EXISTS grade_history (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  grade_id BIGINT NOT NULL,
+  submission_id BIGINT NOT NULL,
+  scorer_id BIGINT,
+  old_score INT,
+  new_score INT,
+  old_feedback TEXT,
+  new_feedback TEXT,
+  change_reason TEXT NOT NULL,
+  operator_id BIGINT NOT NULL,
+  operator_role VARCHAR(16) NOT NULL,
+  changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  CONSTRAINT fk_grade_history_grade FOREIGN KEY (grade_id) REFERENCES grades(id),
+  CONSTRAINT fk_grade_history_submission FOREIGN KEY (submission_id) REFERENCES submissions(id),
+  CONSTRAINT fk_grade_history_scorer FOREIGN KEY (scorer_id) REFERENCES users(id),
+  CONSTRAINT fk_grade_history_operator FOREIGN KEY (operator_id) REFERENCES users(id)
+);
+
 -- 4. 出勤
 CREATE TABLE IF NOT EXISTS attendance_sessions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   course_id BIGINT NOT NULL,
+  teacher_id BIGINT NOT NULL,
   title VARCHAR(64),
   mode VARCHAR(16) DEFAULT 'CODE',
   start_at DATETIME,
   end_at DATETIME,
-  code VARCHAR(16),
+  status VARCHAR(16) DEFAULT 'ACTIVE',
+  code VARCHAR(4) NOT NULL,
+  start_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  end_time DATETIME NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
-  CONSTRAINT fk_att_course FOREIGN KEY (course_id) REFERENCES course(id)
+  CONSTRAINT fk_att_course FOREIGN KEY (course_id) REFERENCES course(id),
+  CONSTRAINT fk_att_teacher FOREIGN KEY (teacher_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS attendance_records (
@@ -126,14 +177,17 @@ CREATE TABLE IF NOT EXISTS attendance_records (
   session_id BIGINT NOT NULL,
   student_id BIGINT NOT NULL,
   status VARCHAR(16) DEFAULT 'PRESENT',
-  checkin_at DATETIME,
+  checkin_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   checkout_at DATETIME,
   location VARCHAR(128),
+  result VARCHAR(16) DEFAULT 'SUCCESS',
+  remark VARCHAR(255),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
   CONSTRAINT fk_rec_session FOREIGN KEY (session_id) REFERENCES attendance_sessions(id),
-  CONSTRAINT fk_rec_student FOREIGN KEY (student_id) REFERENCES users(id)
+  CONSTRAINT fk_rec_student FOREIGN KEY (student_id) REFERENCES users(id),
+  CONSTRAINT uk_attendance_record UNIQUE (session_id, student_id)
 );
 
 -- 5. 初始化数据
@@ -158,6 +212,55 @@ FLUSH PRIVILEGES;
 INSERT INTO users (student_no, name, password, role, status)
 VALUES ('2335062224', '闫鹤天', '123456', 'STUDENT', 1)
 ON DUPLICATE KEY UPDATE name = VALUES(name), password = VALUES(password), role = VALUES(role), status = VALUES(status);
+
+-- 6. 讨论区表
+CREATE TABLE IF NOT EXISTS discussions (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  course_id BIGINT NOT NULL,
+  author_id BIGINT NOT NULL,
+  author_role ENUM('STUDENT','TEACHER','ADMIN') NOT NULL DEFAULT 'STUDENT',
+  title VARCHAR(255) NOT NULL,
+  content TEXT,
+  status VARCHAR(16) NOT NULL DEFAULT 'OPEN',
+  is_pinned TINYINT NOT NULL DEFAULT 0,
+  allow_comment TINYINT NOT NULL DEFAULT 1,
+  reply_count INT NOT NULL DEFAULT 0,
+  last_reply_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_by BIGINT,
+  updated_by BIGINT,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  deleted_at DATETIME,
+  deleted_by BIGINT,
+  CONSTRAINT fk_discussion_course FOREIGN KEY (course_id) REFERENCES course(id),
+  CONSTRAINT fk_discussion_author FOREIGN KEY (author_id) REFERENCES users(id),
+  CONSTRAINT fk_discussion_created_by FOREIGN KEY (created_by) REFERENCES users(id),
+  CONSTRAINT fk_discussion_updated_by FOREIGN KEY (updated_by) REFERENCES users(id),
+  CONSTRAINT fk_discussion_deleted_by FOREIGN KEY (deleted_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS comments (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  discussion_id BIGINT NOT NULL,
+  parent_id BIGINT,
+  author_id BIGINT NOT NULL,
+  author_role ENUM('STUDENT','TEACHER','ADMIN') NOT NULL DEFAULT 'STUDENT',
+  content TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_by BIGINT,
+  updated_by BIGINT,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  deleted_at DATETIME,
+  deleted_by BIGINT,
+  CONSTRAINT fk_comment_discussion FOREIGN KEY (discussion_id) REFERENCES discussions(id),
+  CONSTRAINT fk_comment_parent FOREIGN KEY (parent_id) REFERENCES comments(id),
+  CONSTRAINT fk_comment_author FOREIGN KEY (author_id) REFERENCES users(id),
+  CONSTRAINT fk_comment_created_by FOREIGN KEY (created_by) REFERENCES users(id),
+  CONSTRAINT fk_comment_updated_by FOREIGN KEY (updated_by) REFERENCES users(id),
+  CONSTRAINT fk_comment_deleted_by FOREIGN KEY (deleted_by) REFERENCES users(id)
+);
 
 --6讨论与回复表
 CREATE TABLE discussions (

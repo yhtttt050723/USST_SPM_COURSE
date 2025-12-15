@@ -50,9 +50,9 @@
           </el-button>
         </el-form-item>
 
-        <el-button type="plain" id="goto" @click="switchToRegister"
-          >去注册</el-button
-        >
+        <el-button type="primary" plain id="goto" @click="switchToRegister">
+          去注册
+        </el-button>
       </el-form>
 
       <!-- 注册表单 -->
@@ -118,7 +118,7 @@
           </el-button>
         </el-form-item>
 
-        <el-button type="plain" id="back" @click="switchToLogin">
+        <el-button type="primary" plain id="back" @click="switchToLogin">
           返回
         </el-button>
       </el-form>
@@ -215,15 +215,40 @@ const handleLogin = async () => {
       password: formModel.password
     })
 
+    console.log('登录响应:', res)
     
-    // 设置用户信息到store（同步更新 currentUser 和 localStorage）
-    userStore.setUser(res.data)
+    // 处理响应数据：响应拦截器已经处理，res可能是LoginResponse对象或{data: LoginResponse}
+    let userData
+    if (res && res.data && typeof res.data === 'object' && res.data.studentNo) {
+      // 标准格式：{code, data: LoginResponse}
+      userData = res.data
+    } else if (res && res.studentNo) {
+      // 直接返回LoginResponse对象
+      userData = res
+    } else {
+      throw new Error('登录响应数据格式错误')
+    }
+    
+    // 验证必要字段
+    if (!userData.token) {
+      throw new Error('登录成功，但未获取到token，请检查后端响应')
+    }
+    
+    console.log('用户数据:', userData)
+    console.log('Token已获取:', userData.token.substring(0, 20) + '...')
+    
+    // 设置用户信息到store（同步更新 currentUser 和 sessionStorage）
+    userStore.setUser(userData)
+    console.log('用户信息已保存')
     
     ElMessage.success('登录成功')
     
     // 获取重定向路径
     const redirect = route.query.redirect || null
-    const userRole = res.data.role
+    const userRole = userData.role
+    
+    // 延迟一下，让用户看到成功消息
+    await new Promise(resolve => setTimeout(resolve, 300))
     
     if (redirect) {
       await router.push(redirect)
@@ -235,7 +260,19 @@ const handleLogin = async () => {
       await router.push('/')
     }
   } catch (error) {
-    ElMessage.error( '登录失败')
+    console.error('登录失败:', error)
+    
+    // 提取错误消息
+    let errorMsg = '登录失败'
+    if (error?.response?.data?.message) {
+      errorMsg = error.response.data.message
+    } else if (error?.response?.data?.error) {
+      errorMsg = error.response.data.error
+    } else if (error?.message) {
+      errorMsg = error.message
+    }
+    
+    ElMessage.error(errorMsg)
   } finally {
     loginLoading.value = false
   }

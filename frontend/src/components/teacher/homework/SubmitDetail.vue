@@ -5,6 +5,11 @@
           <el-skeleton :rows="5" animated />
         </div>
 
+        <!-- 调试信息，方便确认列表长度 -->
+        <div v-if="!loading" class="debug-info">
+          调试：submitDetails={{ submitDetails.length }}，filtered={{ filteredSubmitDetails.length }}
+        </div>
+
         <div class="header">
             <div class="filter-section">
                 <el-radio-group v-model="filterStatus" size="small">
@@ -18,32 +23,34 @@
                 <div class="count-wait">待批改人数 : {{ pendingCount }}</div>
             </div>
         </div>
-        <div class="body">
-            <el-row class="tip">
-                <el-col :span="12" class="name">学生姓名</el-col>
-                <el-col :span="6" class="time">提交时间</el-col>
-                <el-col :span="6" class="status">提交状态</el-col>
-            </el-row>
+    <template v-if="!loading && filteredSubmitDetails.length > 0">
+      <div class="body">
+          <el-row class="tip">
+              <el-col :span="10" class="name">学生姓名</el-col>
+              <el-col :span="6" class="time">提交时间</el-col>
+              <el-col :span="4" class="status">提交状态</el-col>
+              <el-col :span="4" class="action">操作</el-col>
+          </el-row>
 
-            <div class="detail-box">
-                <SubmitDetailBox
-                  v-for="submitDetail in filteredSubmitDetails"
-                  :key="submitDetail.id"
-                  :submitDetail="submitDetail"
-                  @click="goToStudentHomework(submitDetail)"
-                />
-            </div>
-        </div>
-        <!-- 空状态 -->
-        <div v-if="!loading && filteredSubmitDetails.length === 0" class="empty">
-          <el-empty description="暂无提交" />
-        </div>
+          <div class="detail-box">
+              <SubmitDetailBox
+                v-for="submitDetail in filteredSubmitDetails"
+                :key="submitDetail.id ?? submitDetail.studentId"
+                :submitDetail="submitDetail"
+                @click="goToStudentHomework(submitDetail)"
+              />
+          </div>
+      </div>
+    </template>
+    <div v-else-if="!loading" class="empty">
+      <el-empty description="暂无提交" />
+    </div>
     </div>
 </template>
 
 <script setup>
 import SubmitDetailBox from '@/components/teacher/homework/SubmitDetailBox.vue'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 import { useRouter } from 'vue-router'
@@ -58,6 +65,10 @@ const props = defineProps({
 
 // 提交列表数据
 const submitDetails = ref([])
+// 方便在控制台快速查看
+if (typeof window !== 'undefined') {
+  window.submitDetails = submitDetails.value
+}
 const loading = ref(false)
 const filterStatus = ref('all')
 
@@ -70,6 +81,12 @@ const filteredSubmitDetails = computed(() => {
   }
   return submitDetails.value
 })
+
+// 方便调试：暴露到 window
+if (typeof window !== 'undefined') {
+  window.submitDetails = submitDetails.value
+  window.filteredSubmitDetails = filteredSubmitDetails
+}
 
 // 提交人数统计
 const submissionCount = computed(() => submitDetails.value.length)
@@ -87,12 +104,33 @@ const fetchSubmissions = async () => {
     }
     
     loading.value = true
+    console.log('fetchSubmissions assignmentId:', props.assignmentId)
     try {
       const response = await request.get(`/assignments/${props.assignmentId}/submissions`)
-      submitDetails.value = response.data || []
+      console.log('获取提交详情响应:', response)
+      
+      // 处理响应数据：可能是数组直接返回，也可能是 {data: []} 格式
+      if (Array.isArray(response)) {
+        // 直接返回数组
+        submitDetails.value = response
+      } else if (response && response.data && Array.isArray(response.data)) {
+        // 标准格式：{code, data: []}
+        submitDetails.value = response.data
+      } else {
+        console.warn('响应数据格式异常:', response)
+        submitDetails.value = []
+      }
+      
+      // 方便调试：在浏览器控制台可直接查看 window.submitDetails
+      if (typeof window !== 'undefined') {
+        window.submitDetails = submitDetails.value
+        // filteredSubmitDetails 是 computed，浏览器查看需 window.filteredSubmitDetails.value
+      }
+      console.log('解析后的提交详情:', submitDetails.value)
+      console.log('长度调试: submitDetails.length=', submitDetails.value.length, ' filtered=', filteredSubmitDetails.value.length)
     } catch (error) {
       console.error('获取提交详情失败:', error)
-      ElMessage.error('获取提交详情失败')
+      ElMessage.error(error.message || '获取提交详情失败')
       submitDetails.value = []
     } finally {
       loading.value = false
@@ -110,9 +148,20 @@ const goToStudentHomework = (submitDetail) => {
 onMounted(() => {
   fetchSubmissions()
 })
+
+// 也监听 assignmentId 变化，防止切换作业不刷新
+watch(() => props.assignmentId, () => {
+  fetchSubmissions()
+}, { immediate: false })
 </script>
 
 <style scoped>
+.debug-info {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 8px;
+}
+
 .header {
     display: flex;
     justify-content: space-between;

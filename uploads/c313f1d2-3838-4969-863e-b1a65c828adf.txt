@@ -1,0 +1,18 @@
+b中有0 且0 的位置不能是第一个
+strpos的索引是从零开始的
+所以第一个位置不能是零
+a是一个纯数字且b是有数字和小写字母组成
+
+然后第一个判断对b进行判断
+
+把c与a保持一致
+然后
+输入b 把b中的内容以数组形式保存到huiguiflag
+
+那么回归flag的基本功如果等于c的md5值
+那么输出flag
+
+1
+md5
+c4ca4238a0b923820dcc509a6f75849b
+huigui_jibengong.1 = 0   （$a=0，数字huigui_jibengong.2 = "a=whatever&0=".md5("jibengong")huigui_jibengong.3 = "jibengong"
