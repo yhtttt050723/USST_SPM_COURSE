@@ -5,11 +5,6 @@
           <el-skeleton :rows="5" animated />
         </div>
 
-        <!-- 调试信息，方便确认列表长度 -->
-        <div v-if="!loading" class="debug-info">
-          调试：submitDetails={{ submitDetails.length }}，filtered={{ filteredSubmitDetails.length }}
-        </div>
-
         <div class="header">
             <div class="filter-section">
                 <el-radio-group v-model="filterStatus" size="small">
@@ -65,10 +60,6 @@ const props = defineProps({
 
 // 提交列表数据
 const submitDetails = ref([])
-// 方便在控制台快速查看
-if (typeof window !== 'undefined') {
-  window.submitDetails = submitDetails.value
-}
 const loading = ref(false)
 const filterStatus = ref('all')
 
@@ -81,12 +72,6 @@ const filteredSubmitDetails = computed(() => {
   }
   return submitDetails.value
 })
-
-// 方便调试：暴露到 window
-if (typeof window !== 'undefined') {
-  window.submitDetails = submitDetails.value
-  window.filteredSubmitDetails = filteredSubmitDetails
-}
 
 // 提交人数统计
 const submissionCount = computed(() => submitDetails.value.length)

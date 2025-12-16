@@ -91,16 +91,16 @@ const emit = defineEmits(['submit', 'viewSubmission'])
 const userStore = useUserStore()
 const loading = ref(false)
 const assignment = ref(null)
-const user = computed(() => userStore.currentUser || {})
 const courseLabel = ref('')
 
 // 获取作业详情
 const fetchAssignment = async () => {
   if (!props.assignmentId) return
   
-  const userId = user.value.id
-  const userRole = user.value.role
   await userStore.hydrateUserFromCache()
+  const currentUser = userStore.currentUser || {}
+  const userId = currentUser.id
+  const userRole = currentUser.role
   const course = userStore.currentCourse
   const courseId = course?.id
   courseLabel.value = formatCourseLabel(course)

@@ -213,16 +213,27 @@ const fetchSubmissionDetail = async () => {
     return
   }
 
+  // 先恢复用户和课程上下文
+  await userStore.hydrateUserFromCache()
+  const course = userStore.currentCourse
+  if (!course || !course.id) {
+    ElMessage.warning('请先选择课程')
+    loading.value = false
+    return
+  }
+
   loading.value = true
   try {
     const assignmentId = route.query.assignmentId
     
     if (assignmentId) {
+      // 教师端获取作业详情：只需要带上 courseId，不需要 studentId
       const assignmentRes = await request.get(`/assignments/${assignmentId}`, {
-        params: { studentId: userStore.currentUser?.id || 1 }
+        params: { courseId: course.id }
       })
       assignment.value = assignmentRes?.data || assignmentRes
 
+      // 获取该作业的所有提交，再从中找到当前 submissionId
       const submissionsRes = await request.get(`/assignments/${assignmentId}/submissions`)
       const submissions = Array.isArray(submissionsRes)
         ? submissionsRes
@@ -234,9 +245,9 @@ const fetchSubmissionDetail = async () => {
         ElMessage.warning('未找到该提交记录')
       }
     } else {
-      // 如果没有传 assignmentId，则需要遍历所有作业以查找该提交
+      // 如果没有传 assignmentId，则需要遍历当前课程下的所有作业以查找该提交
       const assignmentsRes = await request.get('/assignments', {
-        params: { role: 'TEACHER' }
+        params: { role: 'TEACHER', courseId: course.id }
       })
       const assignments = assignmentsRes.data || []
       
