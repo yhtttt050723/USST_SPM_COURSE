@@ -2,14 +2,13 @@
   <div class="box">
     <div class="header">
       <FourNumber :code="code" />
-      <div class="title">输入 4 位签到码</div>
     </div>
     <el-form class="form" @submit.prevent="handleSubmit">
       <el-form-item>
         <el-input
           v-model="code"
           maxlength="4"
-          placeholder="例如：1234"
+          placeholder="请输入签到码"
           clearable
           :disabled="loading"
         />
@@ -85,7 +84,7 @@ const handleSubmit = async () => {
   height: auto;
   padding: 20px;
   background-color: #1f2937;
-  border-radius: 16px;
+  border-radius: 25px;
   color: #fff;
 }
 .header {
@@ -101,7 +100,7 @@ const handleSubmit = async () => {
 .form {
   background: rgba(255, 255, 255, 0.04);
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 25px;
 }
 .submit-btn {
   width: 100%;

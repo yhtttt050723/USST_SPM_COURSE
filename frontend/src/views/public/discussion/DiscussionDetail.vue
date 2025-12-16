@@ -1,7 +1,7 @@
 <template>
   <div class="discussion-detail-page" v-loading="loading">
     <div class="page-header">
-      <el-page-header @back="goBack" content="讨论详情" />
+      <el-page-header @back="goBack"  content="讨论详情" />
       <div class="actions" v-if="topic">
         <el-button v-if="topic.canDelete" type="danger" text @click="confirmDeleteTopic">删除</el-button>
         <el-tag v-if="topic.status === 'CLOSED'" type="info" round>已关闭</el-tag>

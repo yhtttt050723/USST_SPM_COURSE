@@ -186,4 +186,9 @@ onMounted(() => {
   font-weight: bold;
   width: 30%;
 }
+.homework-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 20px 20px 20px;
+}
 </style>

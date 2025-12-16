@@ -9,9 +9,13 @@
       :title="errorMessage"
     />
     <el-row class="stu-attendance-header">
-
-      <el-col class="time" :span="12">点名时间</el-col>
-      <el-col class="state" :span="6">出勤状态</el-col>
+      <el-col class="left" :span="18">
+        <el-row class="left-header">
+          <el-col class="time" :span="6">签到时间</el-col>
+          <el-col class="null" :span="12"></el-col>
+          <el-col class="state" :span="6">签到状态</el-col>
+        </el-row>
+      </el-col>
       <el-col class="component" :span="6"></el-col>
     </el-row>
     <el-row class="body">
@@ -23,7 +27,7 @@
     </div>
     
     <!-- 出勤列表 -->
-    <div v-else class="homework-list">
+    <div v-else class="attendance-list">
       <AttendanceBox
         v-for="item in attendanceRecords"
         :key="item.id"
@@ -91,11 +95,13 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.stu-attendance-header .el-col {
-  margin: 15px 0px;
-  padding: 0px 50px;
+.stu-attendance-header {
+  margin: 15px 0;
 }
 
+.stu-attendance-header .el-col {
+  padding: 0 20px;
+}
 .body {
   margin: 0;
 }
@@ -126,5 +132,10 @@ onMounted(() => {
 }
 .component {
   width: 100%;
+}
+.attendance-list {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 20px 20px 20px;
 }
 </style>
