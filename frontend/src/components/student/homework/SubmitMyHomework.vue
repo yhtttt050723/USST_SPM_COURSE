@@ -127,9 +127,16 @@ const handleSubmit = async () => {
     return
   }
 
+  await userStore.hydrateUserFromCache()
   const userId = currentUser.value.id
+  const course = userStore.currentCourse
+  const courseId = course?.id
   if (!userId) {
     ElMessage.warning('请先登录')
+    return
+  }
+  if (!courseId) {
+    ElMessage.warning('请先选择课程')
     return
   }
 
@@ -179,11 +186,14 @@ const handleSubmit = async () => {
     uploading.value = false
 
     // 提交作业
-    await submitAssignment(props.assignmentId, {
+    const payload = {
       content: submitContent.value,
       studentId: userId,
-      attachmentIds: attachmentIds
-    })
+      attachmentIds: attachmentIds,
+      courseId
+    }
+    console.log('[submit] 提交作业 payload:', payload)
+    await submitAssignment(props.assignmentId, payload)
     
     ElMessage.success('作业提交成功')
     
@@ -194,7 +204,8 @@ const handleSubmit = async () => {
     emit('submitted')
   } catch (error) {
     console.error('提交作业失败:', error)
-    ElMessage.error(error.message || '提交作业失败，请重试')
+    const msg = error?.response?.data?.message || error.message || '提交作业失败，请重试'
+    ElMessage.error(msg)
   } finally {
     submitting.value = false
     uploading.value = false

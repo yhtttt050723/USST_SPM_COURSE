@@ -4,9 +4,9 @@ import request from './request';
  * 获取所有作业（教师端）
  * 通过 role=TEACHER 参数获取教师视图的作业列表，包含统计信息
  */
-export function getTeacherAssignments() {
+export function getTeacherAssignments(courseId) {
   return request.get('/assignments', {
-    params: { role: 'TEACHER' }
+    params: { role: 'TEACHER', courseId }
   });
 }
 

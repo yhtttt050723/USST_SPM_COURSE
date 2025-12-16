@@ -2,9 +2,11 @@ package com.usst.spm.demo.service;
 
 import com.usst.spm.demo.dto.*;
 import com.usst.spm.demo.model.Comment;
+import com.usst.spm.demo.model.CourseEnrollment;
 import com.usst.spm.demo.model.Discussion;
 import com.usst.spm.demo.model.User;
 import com.usst.spm.demo.repository.CommentRepository;
+import com.usst.spm.demo.repository.CourseEnrollmentRepository;
 import com.usst.spm.demo.repository.DiscussionRepository;
 import com.usst.spm.demo.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -21,19 +23,36 @@ import java.util.stream.Collectors;
 @Service
 public class DiscussionService {
 
-    private static final Long DEFAULT_COURSE_ID = 1L;
-
     private final DiscussionRepository discussionRepository;
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
+    private final CourseEnrollmentRepository courseEnrollmentRepository;
 
     public DiscussionService(
             DiscussionRepository discussionRepository,
             CommentRepository commentRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            CourseEnrollmentRepository courseEnrollmentRepository) {
         this.discussionRepository = discussionRepository;
         this.commentRepository = commentRepository;
         this.userRepository = userRepository;
+        this.courseEnrollmentRepository = courseEnrollmentRepository;
+    }
+    
+    /**
+     * 校验用户是否已加入课程
+     */
+    private void requireEnrollment(Long courseId, Long userId) {
+        if (courseId == null || userId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程或用户信息");
+        }
+        Optional<CourseEnrollment> enrollment = courseEnrollmentRepository
+                .findByCourseIdAndStudentIdAndDeleted(courseId, userId, 0);
+        boolean enrolled = enrollment.isPresent() 
+                && (enrollment.get().getStatus() == null || "ACTIVE".equals(enrollment.get().getStatus()));
+        if (!enrolled) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "未加入该课程");
+        }
     }
 
     /**
@@ -41,8 +60,15 @@ public class DiscussionService {
      */
     @Transactional
     public DiscussionResponse createDiscussion(Long authorId, String authorRole, DiscussionCreateRequest request) {
+        if (request.getCourseId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID");
+        }
+        
+        // 校验用户是否已加入该课程
+        requireEnrollment(request.getCourseId(), authorId);
+        
         Discussion discussion = new Discussion();
-        discussion.setCourseId(request.getCourseId() != null ? request.getCourseId() : DEFAULT_COURSE_ID);
+        discussion.setCourseId(request.getCourseId());
         discussion.setAuthorId(authorId);
         discussion.setAuthorRole(authorRole);
         discussion.setTitle(request.getTitle());
@@ -71,18 +97,21 @@ public class DiscussionService {
      * 获取讨论帖列表（教师可以看到所有，学生只能看到未删除的）
      */
     public List<DiscussionResponse> getDiscussions(Long courseId, boolean includeDeleted, String keyword, String status, int page, int size) {
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID参数");
+        }
+        
         List<Discussion> discussions;
-        Long targetCourseId = courseId != null ? courseId : DEFAULT_COURSE_ID;
         
         if (includeDeleted) {
             // 教师端：可以看到所有（包括已删除的）
             // 获取该课程的所有讨论帖（包括已删除的）
             discussions = discussionRepository.findAll().stream()
-                    .filter(d -> targetCourseId.equals(d.getCourseId()))
+                    .filter(d -> courseId.equals(d.getCourseId()))
                     .collect(Collectors.toList());
         } else {
             // 学生端：只能看到未删除的
-            discussions = discussionRepository.findByCourseIdAndDeleted(targetCourseId, 0);
+            discussions = discussionRepository.findByCourseIdAndDeleted(courseId, 0);
         }
 
         // 按置顶和时间排序（lastReplyAt 优先，其次 createdAt）
@@ -230,6 +259,10 @@ public class DiscussionService {
         // 验证讨论帖存在
         Discussion discussion = discussionRepository.findByIdAndDeleted(discussionId, 0)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "讨论帖不存在"));
+        
+        // 校验用户是否已加入该课程（通过讨论帖的 courseId）
+        requireEnrollment(discussion.getCourseId(), authorId);
+        
         boolean isTeacherOrAdmin = "TEACHER".equalsIgnoreCase(authorRole) || "ADMIN".equalsIgnoreCase(authorRole);
         if (discussion.getAllowComment() != null && discussion.getAllowComment() == 0 && !isTeacherOrAdmin) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "该讨论已关闭评论");

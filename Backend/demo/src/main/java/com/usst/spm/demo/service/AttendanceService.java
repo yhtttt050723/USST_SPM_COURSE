@@ -12,6 +12,8 @@ import com.usst.spm.demo.model.User;
 import com.usst.spm.demo.repository.AttendanceRecordRepository;
 import com.usst.spm.demo.repository.AttendanceSessionRepository;
 import com.usst.spm.demo.repository.UserRepository;
+import com.usst.spm.demo.repository.CourseEnrollmentRepository;
+import com.usst.spm.demo.repository.CourseRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,14 +31,20 @@ public class AttendanceService {
     private final AttendanceSessionRepository sessionRepository;
     private final AttendanceRecordRepository recordRepository;
     private final UserRepository userRepository;
+    private final CourseEnrollmentRepository courseEnrollmentRepository;
+    private final CourseRepository courseRepository;
     private final Random random = new Random();
 
     public AttendanceService(AttendanceSessionRepository sessionRepository,
                              AttendanceRecordRepository recordRepository,
-                             UserRepository userRepository) {
+                             UserRepository userRepository,
+                             CourseEnrollmentRepository courseEnrollmentRepository,
+                             CourseRepository courseRepository) {
         this.sessionRepository = sessionRepository;
         this.recordRepository = recordRepository;
         this.userRepository = userRepository;
+        this.courseEnrollmentRepository = courseEnrollmentRepository;
+        this.courseRepository = courseRepository;
     }
 
     private boolean isTeacherOrAdmin(User user) {
@@ -58,12 +66,36 @@ public class AttendanceService {
         return String.format("%04d", random.nextInt(10000));
     }
 
+    private void requireTeacherOfCourse(User currentUser, Long courseId) {
+        if (currentUser == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "未登录");
+        }
+        if (!isTeacherOrAdmin(currentUser)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限");
+        }
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID");
+        }
+        if ("ADMIN".equalsIgnoreCase(currentUser.getRole())) {
+            return; // 管理员放行
+        }
+        courseRepository.findById(courseId).ifPresent(c -> {
+            if (c.getTeacherId() != null && !c.getTeacherId().equals(currentUser.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只能管理自己负责的课程");
+            }
+        });
+    }
+
     public AttendanceSessionResponse createSession(User currentUser, AttendanceSessionCreateRequest request) {
         if (!isTeacherOrAdmin(currentUser)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限");
         }
-        Long courseId = request.getCourseId() == null ? 1L : request.getCourseId();
-        request.setCourseId(courseId);
+        if (request.getCourseId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID");
+        }
+        Long courseId = request.getCourseId();
+        // 校验课程归属
+        requireTeacherOfCourse(currentUser, courseId);
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime end = request.getEndTime();
@@ -108,11 +140,8 @@ public class AttendanceService {
     public AttendanceSessionResponse endSession(User currentUser, Long sessionId) {
         AttendanceSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "签到不存在"));
-        boolean isAdmin = "ADMIN".equalsIgnoreCase(currentUser.getRole());
-        boolean sameTeacher = session.getTeacherId().equals(currentUser.getId());
-        if (!isTeacherOrAdmin(currentUser) || (!isAdmin && !sameTeacher)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限结束此签到");
-        }
+        // 校验教师是否为该课程任课教师
+        requireTeacherOfCourse(currentUser, session.getCourseId());
         if ("ENDED".equalsIgnoreCase(session.getStatus())) {
             return toSessionResponse(session);
         }
@@ -121,20 +150,29 @@ public class AttendanceService {
         return toSessionResponse(saved);
     }
 
-    public Page<AttendanceSessionResponse> listSessions(Long courseId, int page, int size) {
-        Long finalCourseId = courseId == null ? 1L : courseId;
+    public Page<AttendanceSessionResponse> listSessions(User currentUser, Long courseId, int page, int size) {
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID");
+        }
+        requireTeacherOfCourse(currentUser, courseId);
         Page<AttendanceSession> data = sessionRepository.findByCourseIdOrderByStartTimeDesc(
-                finalCourseId, PageRequest.of(page, size));
+                courseId, PageRequest.of(page, size));
         return data.map(this::toSessionResponse);
     }
 
-    public Page<AttendanceRecordResponse> listRecords(Long sessionId, int page, int size) {
+    public Page<AttendanceRecordResponse> listRecords(User currentUser, Long sessionId, int page, int size) {
+        AttendanceSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "签到不存在"));
+        requireTeacherOfCourse(currentUser, session.getCourseId());
         Page<AttendanceRecord> data = recordRepository.findBySessionIdOrderByCheckinAtDesc(
                 sessionId, PageRequest.of(page, size));
         return data.map(this::toRecordResponse);
     }
 
-    public AttendanceStatsResponse getStats(Long sessionId) {
+    public AttendanceStatsResponse getStats(User currentUser, Long sessionId) {
+        AttendanceSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "签到不存在"));
+        requireTeacherOfCourse(currentUser, session.getCourseId());
         long present = recordRepository.countBySessionId(sessionId);
         AttendanceStatsResponse resp = new AttendanceStatsResponse();
         resp.setSessionId(sessionId);
@@ -194,11 +232,20 @@ public class AttendanceService {
         if (code == null || !code.matches("^\\d{4}$")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "签到码需为4位数字");
         }
-        Long finalCourseId = courseId == null ? 1L : courseId;
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID");
+        }
+        boolean enrolled = courseEnrollmentRepository
+                .findByCourseIdAndStudentIdAndDeleted(courseId, student.getId(), 0)
+                .filter(en -> en.getStatus() == null || "ACTIVE".equals(en.getStatus()))
+                .isPresent();
+        if (!enrolled) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "未加入该课程");
+        }
 
         LocalDateTime now = LocalDateTime.now();
         AttendanceSession session = sessionRepository
-                .findFirstByCourseIdAndCodeAndStatusAndEndTimeAfter(finalCourseId, code, "ACTIVE", now)
+                .findFirstByCourseIdAndCodeAndStatusAndEndTimeAfter(courseId, code, "ACTIVE", now)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "签到码无效"));
 
         // 过期检测

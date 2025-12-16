@@ -89,7 +89,7 @@ const router = createRouter({
                 meta: { requiresAuth: true, role: 'TEACHER' }
             },
             {
-                path: '/teacher/attendance/detail',
+                path: '/teacher/attendance/:id',
                 name: 'TeacherAttendanceDetail',
                 component: () => import('@/views/teacher/attendance/AttendanceDetail.vue'),
                 meta: { requiresAuth: true, role: 'TEACHER' }
@@ -116,6 +116,12 @@ const router = createRouter({
                 path: '/teacher/homework/studentHomework/:submissionId',
                 name: 'TeacherStudentHomework',
                 component: () => import('@/views/teacher/homework/StudentHomework.vue'),
+                meta: { requiresAuth: true, role: 'TEACHER' }
+            },
+            {
+                path: '/teacher/announcement',
+                name: 'TeacherAnnouncement',
+                component: () => import('@/views/teacher/announcement/Announcement.vue'),
                 meta: { requiresAuth: true, role: 'TEACHER' }
             },
             {

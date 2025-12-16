@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -41,7 +42,10 @@ public class AnnouncementService {
         }
 
         Announcement announcement = new Announcement();
-        announcement.setCourseId(request.getCourseId() != null ? request.getCourseId() : DEFAULT_COURSE_ID);
+        // 如果 courseId 为 null，使用默认课程ID（向后兼容）
+        // courseId=0 表示全校公告
+        Long targetCourseId = request.getCourseId() != null ? request.getCourseId() : DEFAULT_COURSE_ID;
+        announcement.setCourseId(targetCourseId);
         announcement.setAuthorId(authorId);
         announcement.setTitle(request.getTitle());
         announcement.setContent(request.getContent());
@@ -57,12 +61,71 @@ public class AnnouncementService {
 
     /**
      * 获取公告列表
+     * @param courseId 课程ID
+     *                  - null: 未指定，向后兼容时返回默认课程公告
+     *                  - 0: 全校公告
+     *                  - > 0: 指定课程的公告
+     * @param includeGlobal 是否包含全校公告
+     *                      - true: 如果 courseId > 0，同时返回该课程公告和全校公告；如果 courseId 为 null/0，只返回全校公告
+     *                      - false: 只返回指定 courseId 的公告（courseId=0时返回全校公告，courseId>0时返回课程公告，courseId=null时返回默认课程公告）
      */
-    public List<AnnouncementResponse> getAnnouncements(Long courseId) {
-        Long targetCourseId = courseId != null ? courseId : DEFAULT_COURSE_ID;
-        List<Announcement> announcements = announcementRepository
-                .findByCourseIdAndDeletedOrderByIsPinnedDescCreatedAtDesc(targetCourseId, 0);
-        return announcements.stream()
+    public List<AnnouncementResponse> getAnnouncements(Long courseId, boolean includeGlobal) {
+        List<Announcement> announcements = new ArrayList<>();
+        
+        if (courseId != null && courseId == 0) {
+            // courseId = 0: 只获取全校公告
+            List<Announcement> globalAnnouncements = announcementRepository
+                    .findByCourseIdAndDeletedOrderByIsPinnedDescCreatedAtDesc(0L, 0);
+            announcements.addAll(globalAnnouncements);
+        } else if (courseId != null && courseId > 0) {
+            // courseId > 0: 获取该课程的公告
+            List<Announcement> courseAnnouncements = announcementRepository
+                    .findByCourseIdAndDeletedOrderByIsPinnedDescCreatedAtDesc(courseId, 0);
+            announcements.addAll(courseAnnouncements);
+            
+            // 如果需要包含全校公告，同时获取
+            if (includeGlobal) {
+                List<Announcement> globalAnnouncements = announcementRepository
+                        .findByCourseIdAndDeletedOrderByIsPinnedDescCreatedAtDesc(0L, 0);
+                announcements.addAll(globalAnnouncements);
+            }
+        } else {
+            // courseId 为 null 或 <= 0: 向后兼容
+            if (includeGlobal) {
+                // 包含全校公告：返回默认课程公告 + 全校公告
+                List<Announcement> defaultCourseAnnouncements = announcementRepository
+                        .findByCourseIdAndDeletedOrderByIsPinnedDescCreatedAtDesc(DEFAULT_COURSE_ID, 0);
+                announcements.addAll(defaultCourseAnnouncements);
+                List<Announcement> globalAnnouncements = announcementRepository
+                        .findByCourseIdAndDeletedOrderByIsPinnedDescCreatedAtDesc(0L, 0);
+                announcements.addAll(globalAnnouncements);
+            } else {
+                // 不包含全校公告：只返回默认课程公告（向后兼容）
+                List<Announcement> defaultCourseAnnouncements = announcementRepository
+                        .findByCourseIdAndDeletedOrderByIsPinnedDescCreatedAtDesc(DEFAULT_COURSE_ID, 0);
+                announcements.addAll(defaultCourseAnnouncements);
+            }
+        }
+        
+        // 去重（避免重复）并排序
+        List<Announcement> distinctAnnouncements = announcements.stream()
+                .collect(Collectors.toMap(Announcement::getId, a -> a, (a, b) -> a))
+                .values()
+                .stream()
+                .sorted((a, b) -> {
+                    // 先按置顶排序
+                    int pinCompare = Boolean.compare(
+                            b.getIsPinned() != null && b.getIsPinned(),
+                            a.getIsPinned() != null && a.getIsPinned()
+                    );
+                    if (pinCompare != 0) return pinCompare;
+                    // 再按创建时间倒序
+                    if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
+                    return b.getCreatedAt().compareTo(a.getCreatedAt());
+                })
+                .collect(Collectors.toList());
+        
+        return distinctAnnouncements.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }

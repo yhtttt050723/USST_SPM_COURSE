@@ -23,6 +23,14 @@
         required
       />
 
+      <label v-if="mode === 'register'">邀请码 / 课程编码</label>
+      <input
+        v-if="mode === 'register'"
+        v-model="form.inviteCode"
+        placeholder="请输入教师提供的邀请码"
+        required
+      />
+
       <label>密码</label>
       <input
         v-model="form.password"
@@ -49,14 +57,15 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login, register } from '@/api/auth'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/useUserStore'
 
 const router = useRouter()
 const { setUser } = useUserStore()
 const form = reactive({
   studentNo: '',
   name: '',
-  password: ''
+  password: '',
+  inviteCode: ''
 })
 const mode = ref('login')
 const loading = ref(false)
@@ -128,7 +137,8 @@ const handleSubmit = async () => {
       const response = await register({
         studentNo: form.studentNo,
         name: form.name,
-        password: form.password
+        password: form.password,
+        inviteCode: form.inviteCode
       })
       
       // 响应拦截器已经处理，直接使用response
@@ -145,6 +155,7 @@ const handleSubmit = async () => {
       mode.value = 'login'
       form.name = ''
       form.password = ''
+      form.inviteCode = ''
     }
   } catch (err) {
     // 登录/注册失败，只显示错误消息

@@ -15,8 +15,11 @@ public class CorsConfig {
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        // 前端本地地址
+        // 前端本地地址（开发）
         config.addAllowedOrigin("http://localhost:5173");
+        config.addAllowedOrigin("http://localhost:5174");
+        // 兜底：允许任意来源（如需收紧可移除）
+        config.addAllowedOriginPattern("*");
         // 允许携带 Cookie
         config.setAllowCredentials(true);
         // 允许的请求头和方法

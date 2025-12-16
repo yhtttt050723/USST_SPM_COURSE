@@ -19,8 +19,6 @@ import java.util.Optional;
 @CrossOrigin(origins = "*")
 public class DiscussionController {
 
-    private static final Long DEFAULT_COURSE_ID = 1L;
-
     private final DiscussionService discussionService;
     private final UserRepository userRepository;
 
@@ -56,6 +54,7 @@ public class DiscussionController {
     /**
      * 创建讨论帖
      * POST /api/discussions
+     * Body 必须包含 courseId
      */
     @PostMapping
     public ResponseEntity<DiscussionResponse> createDiscussion(
@@ -66,6 +65,10 @@ public class DiscussionController {
         
         if (createRequest.getTitle() == null || createRequest.getTitle().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "标题不能为空");
+        }
+        
+        if (createRequest.getCourseId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID参数");
         }
 
         // 学生创建时忽略管理字段
@@ -84,11 +87,12 @@ public class DiscussionController {
      * GET /api/discussions?courseId=1&includeDeleted=false
      * 教师端：includeDeleted=true 可以看到所有（包括已删除的）
      * 学生端：includeDeleted=false 只能看到未删除的
+     * courseId 为必填参数
      */
     @GetMapping
     public ResponseEntity<List<DiscussionResponse>> getDiscussions(
             HttpServletRequest request,
-            @RequestParam(required = false) Long courseId,
+            @RequestParam(required = true) Long courseId,
             @RequestParam(required = false, defaultValue = "false") boolean includeDeleted,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
@@ -100,7 +104,7 @@ public class DiscussionController {
         }
 
         List<DiscussionResponse> discussions = discussionService.getDiscussions(
-                courseId != null ? courseId : DEFAULT_COURSE_ID,
+                courseId,
                 includeDeleted,
                 keyword,
                 status,
@@ -312,19 +316,20 @@ public class DiscussionController {
 
     /**
      * 教师端：获取所有讨论帖（包括已删除的）
-     * GET /api/discussions/admin/all
+     * GET /api/discussions/admin/all?courseId=1
+     * courseId 为必填参数
      */
     @GetMapping("/admin/all")
     public ResponseEntity<List<DiscussionResponse>> getAllDiscussionsForAdmin(
             HttpServletRequest request,
-            @RequestParam(required = false) Long courseId) {
+            @RequestParam(required = true) Long courseId) {
         User currentUser = requireLogin(request);
         if (!isTeacherOrAdmin(currentUser)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "仅教师或管理员可以访问此接口");
         }
 
         List<DiscussionResponse> discussions = discussionService.getDiscussions(
-                courseId != null ? courseId : DEFAULT_COURSE_ID,
+                courseId,
                 true,
                 null,
                 null,

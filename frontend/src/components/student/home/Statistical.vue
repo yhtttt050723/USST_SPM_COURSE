@@ -70,10 +70,11 @@ const homeworkColor = computed(() => {
 const fetchAssignmentStats = async () => {
     try {
         const userId = currentUser.value.id
-        if (!userId) return
+        const currentCourse = userStore.currentCourse
+        if (!userId || !currentCourse?.id) return
 
         // 获取作业列表（包含提交状态）
-        const response = await getAssignments('all', userId, 'STUDENT')
+        const response = await getAssignments('all', userId, currentCourse.id, 'STUDENT')
         const raw = response?.data || response || []
         const assignments = Array.isArray(raw?.content) ? raw.content : Array.isArray(raw) ? raw : []
         

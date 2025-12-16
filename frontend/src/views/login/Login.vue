@@ -80,6 +80,14 @@
             </template>
           </el-input>
         </el-form-item>
+        <el-form-item prop="inviteCode">
+          <div class="title">邀请码 / 课程编码:</div>
+          <el-input v-model="formModel.inviteCode" placeholder="请输入教师提供的邀请码">
+            <template #prefix>
+              <el-icon><Lock /></el-icon>
+            </template>
+          </el-input>
+        </el-form-item>
         <el-form-item prop="password">
           <div class="title">密码:</div>
           <el-input 
@@ -150,6 +158,7 @@ const formModel = reactive({
   studentNo: '',
   password: '',
   confirmPassword: '',
+  inviteCode: ''
 })
 
 const loginRules = reactive({
@@ -168,6 +177,9 @@ const registerRules = reactive({
   ],
   name: [
     { required: true, message: '请输入姓名', trigger: 'blur' }
+  ],
+  inviteCode: [
+    { required: true, message: '请输入邀请码/课程编码', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -193,6 +205,7 @@ const switchToRegister = () => {
   formModel.studentNo = ''
   formModel.password = ''
   formModel.confirmPassword = ''
+  formModel.inviteCode = ''
   loginFormRef.value?.resetFields()
 }
 
@@ -201,6 +214,7 @@ const switchToLogin = () => {
   formModel.studentNo = ''
   formModel.password = ''
   formModel.confirmPassword = ''
+  formModel.inviteCode = ''
   registerFormRef.value?.resetFields()
 }
 
@@ -286,7 +300,8 @@ const handleRegister = async () => {
     await registerApi({
       studentNo: formModel.studentNo,
       password: formModel.password,
-      name: formModel.name
+      name: formModel.name,
+      inviteCode: formModel.inviteCode
     })
     
     ElMessage.success('注册成功，请登录')

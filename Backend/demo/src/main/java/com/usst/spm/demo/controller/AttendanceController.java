@@ -84,7 +84,7 @@ public class AttendanceController {
      */
     @GetMapping("/sessions")
     public ResponseEntity<Page<AttendanceSessionResponse>> listSessions(
-            @RequestParam(required = false, defaultValue = "1") Long courseId,
+            @RequestParam(required = false) Long courseId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             HttpServletRequest httpRequest) {
@@ -92,7 +92,10 @@ public class AttendanceController {
         if (!isTeacherOrAdmin(user)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限");
         }
-        Page<AttendanceSessionResponse> resp = attendanceService.listSessions(courseId, page, size);
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID参数");
+        }
+        Page<AttendanceSessionResponse> resp = attendanceService.listSessions(user, courseId, page, size);
         return ResponseEntity.ok(resp);
     }
 
@@ -110,7 +113,7 @@ public class AttendanceController {
         if (!isTeacherOrAdmin(user)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限");
         }
-        Page<AttendanceRecordResponse> resp = attendanceService.listRecords(id, page, size);
+        Page<AttendanceRecordResponse> resp = attendanceService.listRecords(user, id, page, size);
         return ResponseEntity.ok(resp);
     }
 
@@ -126,7 +129,7 @@ public class AttendanceController {
         if (!isTeacherOrAdmin(user)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限");
         }
-        AttendanceStatsResponse resp = attendanceService.getStats(id);
+        AttendanceStatsResponse resp = attendanceService.getStats(user, id);
         return ResponseEntity.ok(resp);
     }
 

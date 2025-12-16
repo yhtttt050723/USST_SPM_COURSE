@@ -4,6 +4,10 @@ public class RegisterRequest {
     private String studentNo;
     private String name;
     private String password;
+    /**
+     * 注册时填写的邀请码/课程编码
+     */
+    private String inviteCode;
 
     public String getStudentNo() {
         return studentNo;
@@ -27,5 +31,13 @@ public class RegisterRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getInviteCode() {
+        return inviteCode;
+    }
+
+    public void setInviteCode(String inviteCode) {
+        this.inviteCode = inviteCode;
     }
 }

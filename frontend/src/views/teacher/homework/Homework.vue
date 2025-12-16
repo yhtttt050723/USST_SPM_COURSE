@@ -87,15 +87,18 @@ const assignments = computed(() => {
 
 // 获取作业列表
 const fetchAssignments = async () => {
-  if (!userId.value) {
-    console.warn('用户ID不存在，请先登录')
-    ElMessage.warning('请先登录')
+  // 确保课程上下文
+  await userStore.hydrateUserFromCache()
+  const course = userStore.currentCourse
+  if (!course || !course.id) {
+    ElMessage.warning('请先选择课程')
+    rawAssignments.value = []
     return
   }
-  
+
   loading.value = true
   try {
-    const response = await getAssignments('all', userId.value, 'TEACHER')
+    const response = await getAssignments('all', undefined, course.id, 'TEACHER')
     console.log('获取作业列表响应:', response)
     
     // 处理响应数据：可能是数组直接返回，也可能是 {data: []} 格式

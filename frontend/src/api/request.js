@@ -12,6 +12,15 @@ request.interceptors.request.use(
   config => {
     const url = config.url || '';
     const isAuthRequest = url.includes('/auth/login') || url.includes('/auth/register');
+    const isCourseRequest = url.includes('/courses');
+    
+    // 课程相关请求添加日志
+    if (isCourseRequest) {
+      console.log(`[api-request] ${config.method?.toUpperCase()} ${url}`, {
+        data: config.data,
+        headers: config.headers
+      })
+    }
     
     // 登录/注册接口不需要token，直接放行
     if (isAuthRequest) {
@@ -56,13 +65,14 @@ request.interceptors.response.use(
     const { data } = response;
     const url = response.config?.url || '';
     const isAuthRequest = url.includes('/auth/login') || url.includes('/auth/register');
+    const isCourseRequest = url.includes('/courses');
     
     // 调试日志
-    if (isAuthRequest) {
-      console.log('登录/注册响应:', { url, status: response.status, data });
+    if (isAuthRequest || isCourseRequest) {
+      console.log(`[api] ${url} response:`, { status: response.status, data, hasCode: typeof data?.code !== 'undefined' });
     }
     
-    if (data && typeof data.code !== 'undefined') {
+    if (data && typeof data.code === 'number') {
       // 标准格式：{code, message, data, timestamp, traceId}
       if (data.code === 200 || data.code === 201) {
         // 对于登录/注册，返回data字段（LoginResponse对象）
@@ -95,6 +105,9 @@ request.interceptors.response.use(
   },
   error => {
     // HTTP 错误处理
+    const errorUrl = error.config?.url || '';
+    console.error(`[api-error] ${errorUrl}:`, error)
+    
     let message = '网络请求失败';
     
     if (error.response) {
@@ -147,8 +160,7 @@ request.interceptors.response.use(
     }
     
     // 只在非登录/注册接口显示ElMessage，避免与Login.vue的error消息重复
-    const url = error.config?.url || '';
-    if (!url.includes('/auth/login') && !url.includes('/auth/register')) {
+    if (!errorUrl.includes('/auth/login') && !errorUrl.includes('/auth/register')) {
       ElMessage.error(message);
     }
     

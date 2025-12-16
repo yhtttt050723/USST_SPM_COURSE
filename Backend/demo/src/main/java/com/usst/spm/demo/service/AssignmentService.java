@@ -40,8 +40,6 @@ import java.util.stream.Collectors;
 @Service
 public class AssignmentService {
 
-    private static final Long DEFAULT_COURSE_ID = 1L;
-
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
     private final GradeRepository gradeRepository;
@@ -73,8 +71,11 @@ public class AssignmentService {
     /**
      * 获取作业列表（学生视角，包含提交状态和成绩）
      */
-    public List<AssignmentResponse> getAssignments(Long studentId, String statusFilter) {
-        List<Assignment> assignments = assignmentRepository.findByCourseIdAndDeleted(DEFAULT_COURSE_ID, 0);
+    public List<AssignmentResponse> getAssignments(Long courseId, Long studentId, String statusFilter) {
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID");
+        }
+        List<Assignment> assignments = assignmentRepository.findByCourseIdAndDeleted(courseId, 0);
         
         return assignments.stream()
                 .map(assignment -> {
@@ -391,7 +392,10 @@ public class AssignmentService {
         }
 
         Assignment assignment = new Assignment();
-        assignment.setCourseId(request.getCourseId() != null ? request.getCourseId() : DEFAULT_COURSE_ID);
+        if (request.getCourseId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID");
+        }
+        assignment.setCourseId(request.getCourseId());
         assignment.setTitle(request.getTitle());
         assignment.setDescription(request.getDescription());
         assignment.setType(request.getType());

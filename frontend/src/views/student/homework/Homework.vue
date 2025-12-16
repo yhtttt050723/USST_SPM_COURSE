@@ -45,6 +45,7 @@ import { ElMessage } from 'element-plus'
 import HomeworkBox from '@/components/student/homework/HomeworkBox.vue'
 import { getAssignments } from '@/api/assignment'
 import { useUserStore } from '@/stores/useUserStore'
+import { listMyCourses } from '@/api/course'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -112,9 +113,43 @@ const fetchAssignments = async () => {
     return
   }
   
+  // 确保有当前课程：先尝试从缓存恢复，如果还没有就调用 API 获取
+  let currentCourse = userStore.currentCourse
+  if (!currentCourse || !currentCourse.id) {
+    try {
+      // 从缓存恢复
+      userStore.hydrateUserFromCache()
+      currentCourse = userStore.currentCourse
+      
+      // 如果还是没有，从服务器获取课程列表
+      if (!currentCourse || !currentCourse.id) {
+        console.log('[homework] currentCourse is null, fetching courses...')
+        const resp = await listMyCourses()
+        const courses = resp.data || resp || []
+        console.log('[homework] fetched courses:', courses)
+        
+        if (courses.length > 0) {
+          userStore.setCourses(courses)
+          currentCourse = courses[0]
+          userStore.setCurrentCourse(currentCourse)
+          console.log('[homework] set currentCourse to first course:', currentCourse)
+        } else {
+          console.warn('[homework] no courses found, redirecting to join')
+          ElMessage.warning('请先加入课程')
+          router.push('/join')
+          return
+        }
+      }
+    } catch (error) {
+      console.error('[homework] failed to fetch courses:', error)
+      ElMessage.error('获取课程信息失败')
+      return
+    }
+  }
+  
   loading.value = true
   try {
-    const response = await getAssignments('all', userId.value, 'STUDENT')
+    const response = await getAssignments('all', userId.value, currentCourse.id, 'STUDENT')
     console.log('获取作业列表响应:', response)
     
     // 处理响应数据：可能是数组直接返回，也可能是 {data: []} 格式

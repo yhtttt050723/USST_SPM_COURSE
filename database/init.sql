@@ -21,18 +21,56 @@ CREATE TABLE IF NOT EXISTS users (
   deleted TINYINT NOT NULL DEFAULT 0
 );
 
--- 2. 课程表
 CREATE TABLE IF NOT EXISTS course (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(128) NOT NULL,
   code VARCHAR(32),
+  -- 学年，例如 2025-2026
+  academic_year VARCHAR(32),
+  -- 学期：UPPER=上学期, LOWER=下学期
+  term ENUM('UPPER','LOWER') DEFAULT 'UPPER',
+  -- 兼容旧字段（可选）
   semester VARCHAR(32),
   description TEXT,
   teacher_id BIGINT,
+  -- 当前有效的邀请码（便于快速校验）
+  invite_code VARCHAR(16),
+  invite_expire_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
   CONSTRAINT fk_course_teacher FOREIGN KEY (teacher_id) REFERENCES users(id)
+);
+
+-- 课程邀请码历史表
+CREATE TABLE IF NOT EXISTS course_invite_codes (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  course_id BIGINT NOT NULL,
+  code VARCHAR(16) NOT NULL,
+  expire_at DATETIME,
+  max_use INT DEFAULT 0,           -- 0 表示不限制
+  used_count INT DEFAULT 0,
+  active TINYINT NOT NULL DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT uk_invite_code UNIQUE (code),
+  CONSTRAINT fk_invite_course FOREIGN KEY (course_id) REFERENCES course(id)
+);
+
+-- 课程成员表
+CREATE TABLE IF NOT EXISTS course_enrollments (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  course_id BIGINT NOT NULL,
+  student_id BIGINT NOT NULL,
+  role ENUM('STUDENT','TA','TEACHER') NOT NULL DEFAULT 'STUDENT',
+  status ENUM('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+  joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  CONSTRAINT uk_course_student UNIQUE (course_id, student_id),
+  CONSTRAINT fk_enroll_course FOREIGN KEY (course_id) REFERENCES course(id),
+  CONSTRAINT fk_enroll_student FOREIGN KEY (student_id) REFERENCES users(id)
 );
 
 -- 作业表（含版本化与审计字段）
@@ -196,13 +234,17 @@ INSERT INTO users (student_no, name, role, password, status)
 VALUES ('T0001', '欧广宇', 'TEACHER', '123456', 1)
 ON DUPLICATE KEY UPDATE name = VALUES(name), role = VALUES(role), password = VALUES(password), status = VALUES(status);
 
-INSERT INTO course (name, code, semester, description, teacher_id)
+INSERT INTO course (name, code, academic_year, term, semester, description, teacher_id, invite_code, invite_expire_at)
 VALUES (
   '项目管理与过程改进',
   'SPM2025',
+  '2025-2026',
+  'UPPER',
   '2025-2026-1',
   '课程实践平台',
-  (SELECT id FROM users WHERE student_no = 'T0001')
+  (SELECT id FROM users WHERE student_no = 'T0001'),
+  '836241',
+  DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 DAY)
 )
 ON DUPLICATE KEY UPDATE name = VALUES(name), code = VALUES(code), semester = VALUES(semester);
 
@@ -212,6 +254,19 @@ FLUSH PRIVILEGES;
 INSERT INTO users (student_no, name, password, role, status)
 VALUES ('2335062224', '闫鹤天', '123456', 'STUDENT', 1)
 ON DUPLICATE KEY UPDATE name = VALUES(name), password = VALUES(password), role = VALUES(role), status = VALUES(status);
+
+-- 将示例学生加入课程
+INSERT INTO course_enrollments (course_id, student_id, role, status)
+SELECT c.id, u.id, 'STUDENT', 'ACTIVE'
+FROM course c, users u
+WHERE c.code = 'SPM2025' AND u.student_no = '2335062224'
+ON DUPLICATE KEY UPDATE status = 'ACTIVE';
+
+-- 生成一条历史邀请码记录
+INSERT INTO course_invite_codes (course_id, code, expire_at, max_use, used_count, active)
+SELECT c.id, '836241', DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 DAY), 200, 0, 1
+FROM course c WHERE c.code = 'SPM2025'
+ON DUPLICATE KEY UPDATE expire_at = VALUES(expire_at), active = 1;
 
 -- 6. 讨论区表
 CREATE TABLE IF NOT EXISTS discussions (
@@ -261,39 +316,6 @@ CREATE TABLE IF NOT EXISTS comments (
   CONSTRAINT fk_comment_updated_by FOREIGN KEY (updated_by) REFERENCES users(id),
   CONSTRAINT fk_comment_deleted_by FOREIGN KEY (deleted_by) REFERENCES users(id)
 );
-
---6讨论与回复表
-CREATE TABLE discussions (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  course_id BIGINT NOT NULL,
-  author_id BIGINT NOT NULL,
-  title VARCHAR(255),
-  content TEXT,
-  reply_count INT DEFAULT 0,
-  view_count INT DEFAULT 0,
-  is_pinned TINYINT(1) DEFAULT 0,
-  is_locked TINYINT(1) DEFAULT 0,
-  created_at DATETIME,
-  updated_at DATETIME,
-  deleted TINYINT(1) DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE discussion_replies (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  discussion_id BIGINT NOT NULL,
-  author_id BIGINT NOT NULL,
-  parent_reply_id BIGINT NULL,
-  content TEXT,
-  created_at DATETIME,
-  updated_at DATETIME,
-  deleted TINYINT(1) DEFAULT 0,
-  CONSTRAINT fk_discussion_reply_discussion
-    FOREIGN KEY (discussion_id) REFERENCES discussions(id)
-    ON DELETE CASCADE,
-  CONSTRAINT fk_discussion_reply_parent
-    FOREIGN KEY (parent_reply_id) REFERENCES discussion_replies(id)
-    ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --7公告表
 CREATE TABLE announcements (

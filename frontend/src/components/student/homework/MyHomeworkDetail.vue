@@ -167,16 +167,23 @@ const handleResubmitted = async () => {
 const fetchSubmission = async () => {
   if (!props.assignmentId) return
   
+  await userStore.hydrateUserFromCache()
   const userId = currentUser.value.id
+  const course = userStore.currentCourse
+  const courseId = course?.id
   if (!userId) {
     ElMessage.warning('请先登录')
+    return
+  }
+  if (!courseId) {
+    ElMessage.warning('请先选择课程')
     return
   }
 
   loading.value = true
   try {
     // 先获取作业详情（包含提交状态）
-    const assignmentResponse = await getAssignmentById(props.assignmentId, userId)
+    const assignmentResponse = await getAssignmentById(props.assignmentId, userId, courseId)
     console.log('获取作业详情响应:', assignmentResponse)
     
     // 处理作业详情响应
@@ -193,7 +200,7 @@ const fetchSubmission = async () => {
     
     if (submissionStatus === 'submitted' || submissionStatus === 'graded') {
       try {
-        const submissionResponse = await getMySubmission(props.assignmentId, userId)
+        const submissionResponse = await getMySubmission(props.assignmentId, userId, courseId)
         console.log('获取我的提交响应:', submissionResponse)
         
         // 处理提交响应

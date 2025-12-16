@@ -49,20 +49,43 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Bell, ArrowRight, Clock } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/useUserStore'
+import { getAnnouncements } from '@/api/announcement'
 
+const userStore = useUserStore()
 const loading = ref(false)
 const latestAnnouncement = ref(null)
 const dialogVisible = ref(false)
 
-// 使用默认公告（后端已移除公告接口，避免 404 日志）
-const useDefaultAnnouncement = () => {
-  latestAnnouncement.value = {
-    id: 1,
-    title: '课程安排通知',
-    content: '各位同学好，本周四下午将进行期中项目检查，请提前准备好演示材料和相关文档。检查内容包括：1. 项目进度展示 2. 代码质量评审 3. 文档完整性检查。',
-    createdAt: new Date().toISOString()
+// 从API加载公告（同时包含当前课程公告和全校公告）
+const loadAnnouncements = async () => {
+  loading.value = true
+  try {
+    // 先从本地缓存中恢复用户和课程信息
+    userStore.hydrateUserFromCache()
+    const currentCourse = userStore.currentCourse
+    if (!currentCourse || !currentCourse.id) {
+      console.warn('当前课程未选择，无法加载公告')
+      loading.value = false
+      return
+    }
+    
+    // 获取当前课程的公告，同时包含全校公告（courseId=0）
+    const resp = await getAnnouncements(currentCourse.id, true)
+    const announcements = resp.data || resp || []
+    
+    // 获取最新的公告（按创建时间倒序，第一个就是最新的）
+    if (announcements.length > 0) {
+      latestAnnouncement.value = announcements[0]
+    } else {
+      latestAnnouncement.value = null
+    }
+  } catch (error) {
+    console.error('加载公告失败:', error)
+    latestAnnouncement.value = null
+  } finally {
+    loading.value = false
   }
-  loading.value = false
 }
 
 // 格式化时间
@@ -108,8 +131,8 @@ const showDetail = () => {
   dialogVisible.value = true
 }
 
-onMounted(() => {
-  useDefaultAnnouncement()
+onMounted(async () => {
+  await loadAnnouncements()
 })
 </script>
 

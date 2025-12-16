@@ -5,6 +5,7 @@ import com.usst.spm.demo.dto.LoginResponse;
 import com.usst.spm.demo.dto.RegisterRequest;
 import com.usst.spm.demo.model.User;
 import com.usst.spm.demo.repository.UserRepository;
+import com.usst.spm.demo.service.CourseService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,10 +18,12 @@ public class AuthController {
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+    private final CourseService courseService;
 
-    public AuthController(UserRepository userRepository,JwtUtil jwtUtil) {
+    public AuthController(UserRepository userRepository, JwtUtil jwtUtil, CourseService courseService) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
+        this.courseService = courseService;
     }
 
     @PostMapping("/login")
@@ -71,6 +74,9 @@ public class AuthController {
         if (userRepository.existsByStudentNo(req.getStudentNo())) {
             throw new RuntimeException("学号已存在");
         }
+        if (req.getInviteCode() == null || req.getInviteCode().isBlank()) {
+            throw new RuntimeException("注册必须填写邀请码/课程编码");
+        }
         User user = new User();
         user.setStudentNo(req.getStudentNo());
         user.setName(req.getName());
@@ -79,7 +85,15 @@ public class AuthController {
         user.setStatus(1);
         user.setDeleted(0);
         user = userRepository.save(user);
-        userRepository.save(user);
+
+        // 通过邀请码加入课程
+        try {
+            courseService.joinByCode(user.getStudentNo(), req.getInviteCode());
+        } catch (Exception e) {
+            // 如果邀请码无效，回滚用户注册（简单起见删除用户记录）
+            userRepository.delete(user);
+            throw new RuntimeException("邀请码无效或已失效：" + e.getMessage());
+        }
 
         String token = jwtUtil.generateToken(user.getStudentNo(), user.getRole());
 

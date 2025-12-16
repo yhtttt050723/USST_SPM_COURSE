@@ -9,6 +9,9 @@
     <div v-else-if="assignment" class="content">
       <div class="header">
         <h2 class="title">{{ assignment.title }}</h2>
+        <div class="course-tag" v-if="courseLabel">
+          {{ courseLabel }}
+        </div>
       </div>
 
       <div class="info-row">
@@ -89,6 +92,7 @@ const userStore = useUserStore()
 const loading = ref(false)
 const assignment = ref(null)
 const user = computed(() => userStore.currentUser || {})
+const courseLabel = ref('')
 
 // 获取作业详情
 const fetchAssignment = async () => {
@@ -96,6 +100,14 @@ const fetchAssignment = async () => {
   
   const userId = user.value.id
   const userRole = user.value.role
+  await userStore.hydrateUserFromCache()
+  const course = userStore.currentCourse
+  const courseId = course?.id
+  courseLabel.value = formatCourseLabel(course)
+  if (!courseId) {
+    ElMessage.warning('请先选择课程')
+    return
+  }
   
   // 学生端需要userId，教师端不需要
   if (!userId && userRole !== 'TEACHER') {
@@ -107,7 +119,7 @@ const fetchAssignment = async () => {
   try {
     // 教师端不传studentId，学生端传studentId
     const studentId = userRole === 'TEACHER' ? null : userId
-    const response = await getAssignmentById(props.assignmentId, studentId)
+    const response = await getAssignmentById(props.assignmentId, studentId, courseId)
     console.log('获取作业详情响应:', response)
     
     // 处理响应数据：可能是直接返回对象，也可能是 {data: {}} 格式
@@ -174,6 +186,16 @@ const getStatusText = (status) => {
     'ended': '已截止'
   }
   return map[status] || '未知'
+}
+
+// 课程显示：名称 + 年份 + 学期
+const formatCourseLabel = (c) => {
+  if (!c) return ''
+  const parts = [c.name]
+  if (c.academicYear) parts.push(c.academicYear)
+  if (c.semester) parts.push(c.semester)
+  if (c.term) parts.push(c.term)
+  return parts.filter(Boolean).join(' - ')
 }
 
 // 监听 assignmentId 变化

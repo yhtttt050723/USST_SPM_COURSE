@@ -10,6 +10,8 @@ import com.usst.spm.demo.model.SubmissionFile;
 import com.usst.spm.demo.model.User;
 import com.usst.spm.demo.repository.AssignmentFileRepository;
 import com.usst.spm.demo.repository.AssignmentRepository;
+import com.usst.spm.demo.repository.CourseRepository;
+import com.usst.spm.demo.repository.CourseEnrollmentRepository;
 import com.usst.spm.demo.repository.FileRepository;
 import com.usst.spm.demo.repository.GradeRepository;
 import com.usst.spm.demo.repository.SubmissionFileRepository;
@@ -19,7 +21,6 @@ import com.usst.spm.demo.service.AssignmentService;
 import com.usst.spm.demo.util.AssignmentStateMachine;
 import jakarta.servlet.http.HttpServletRequest;
 
-import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,13 +29,17 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Collections;
 
 @RestController
 @RequestMapping("/api/assignments")
 @CrossOrigin(origins = "*")
 public class AssignmentController {
-
-    private static final Long DEFAULT_COURSE_ID = 1L;
 
     private final AssignmentRepository assignmentRepository;
     private final AssignmentService assignmentService;
@@ -44,6 +49,8 @@ public class AssignmentController {
     private final AssignmentFileRepository assignmentFileRepository;
     private final SubmissionFileRepository submissionFileRepository;
     private final FileRepository fileRepository;
+    private final CourseEnrollmentRepository courseEnrollmentRepository;
+    private final CourseRepository courseRepository;
 
     public AssignmentController(
             AssignmentRepository assignmentRepository,
@@ -53,7 +60,9 @@ public class AssignmentController {
             UserRepository userRepository,
             AssignmentFileRepository assignmentFileRepository,
             SubmissionFileRepository submissionFileRepository,
-            FileRepository fileRepository) {
+            FileRepository fileRepository,
+            CourseEnrollmentRepository courseEnrollmentRepository,
+            CourseRepository courseRepository) {
         this.assignmentRepository = assignmentRepository;
         this.assignmentService = assignmentService;
         this.submissionRepository = submissionRepository;
@@ -62,6 +71,8 @@ public class AssignmentController {
         this.assignmentFileRepository = assignmentFileRepository;
         this.submissionFileRepository = submissionFileRepository;
         this.fileRepository = fileRepository;
+        this.courseEnrollmentRepository = courseEnrollmentRepository;
+        this.courseRepository = courseRepository;
     }
 
     /**
@@ -88,6 +99,45 @@ public class AssignmentController {
     }
 
     /**
+     * 校验当前登录教师是否为该课程任课教师
+     */
+    private void requireTeacherOfCourse(Long courseId, String studentNo) {
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID");
+        }
+        if (studentNo == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "未登录");
+        }
+        User teacher = userRepository.findByStudentNo(studentNo)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户不存在"));
+        if (!"TEACHER".equals(teacher.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只有教师可以操作该课程作业");
+        }
+        Long teacherId = teacher.getId();
+        com.usst.spm.demo.model.Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "课程不存在"));
+        if (course.getTeacherId() == null || !course.getTeacherId().equals(teacherId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "您不是该课程的任课教师，无法操作此课程的作业");
+        }
+    }
+
+    /**
+     * 校验学生是否已加入课程
+     */
+    private void requireEnrollment(Long courseId, Long studentId) {
+        if (courseId == null || studentId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程或学生信息");
+        }
+        boolean enrolled = courseEnrollmentRepository
+                .findByCourseIdAndStudentIdAndDeleted(courseId, studentId, 0)
+                .filter(en -> en.getStatus() == null || "ACTIVE".equals(en.getStatus()))
+                .isPresent();
+        if (!enrolled) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "未加入该课程");
+        }
+    }
+
+    /**
      * 创建作业（教师）
      * POST /api/assignments
      * Body: AssignmentCreateRequest { "title": "...", "description": "...", "dueAt": "...", "attachmentIds": [...], "maxResubmitCount": 3 }
@@ -102,6 +152,11 @@ public class AssignmentController {
         if (studentNo == null || !isTeacher(studentNo)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只有教师可以创建作业");
         }
+        if (request.getCourseId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID");
+        }
+        // 确保当前教师就是该课程的任课教师
+        requireTeacherOfCourse(request.getCourseId(), studentNo);
 
         Long teacherId = getCurrentUserId(httpRequest);
         AssignmentResponse response = assignmentService.createAssignment(request, teacherId);
@@ -117,15 +172,23 @@ public class AssignmentController {
     public ResponseEntity<List<AssignmentResponse>> getAssignments(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long studentId,
-            @RequestParam(required = false) String role) {
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) Long courseId,
+            HttpServletRequest httpRequest) {
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID参数");
+        }
         // 如果是教师，返回所有作业（带统计信息）
         if ("TEACHER".equals(role)) {
-            // 获取学生总数（role为STUDENT的用户数）
-            long totalStudents = userRepository.findAll().stream()
-                    .filter(user -> "STUDENT".equals(user.getRole()) && (user.getDeleted() == null || user.getDeleted() == 0))
+            // 校验当前教师是否为该课程任课教师
+            String studentNo = (String) httpRequest.getAttribute("studentNo");
+            requireTeacherOfCourse(courseId, studentNo);
+            // 获取课程学生总数（enrollment）
+            long totalStudents = courseEnrollmentRepository.findByCourseIdAndDeleted(courseId, 0).stream()
+                    .filter(en -> en.getStatus() == null || "ACTIVE".equals(en.getStatus()))
                     .count();
-            
-            List<Assignment> assignments = assignmentRepository.findByCourseIdAndDeleted(DEFAULT_COURSE_ID, 0);
+
+            List<Assignment> assignments = assignmentRepository.findByCourseIdAndDeleted(courseId, 0);
             List<AssignmentResponse> responses = assignments.stream()
                     .map(assignment -> {
                         AssignmentResponse response = new AssignmentResponse();
@@ -170,7 +233,7 @@ public class AssignmentController {
         if (studentId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少学生ID参数");
         }
-        List<AssignmentResponse> assignments = assignmentService.getAssignments(studentId, status);
+        List<AssignmentResponse> assignments = assignmentService.getAssignments(courseId, studentId, status);
         return ResponseEntity.ok(assignments);
     }
 
@@ -183,10 +246,15 @@ public class AssignmentController {
     public ResponseEntity<AssignmentResponse> getAssignmentById(
             @PathVariable Long id,
             @RequestParam(required = false) Long studentId,
+            @RequestParam(required = false) Long courseId,
             @RequestAttribute(required = false) String studentNo) {
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID参数");
+        }
         // 如果提供了studentId，使用studentId（学生端）
         // 如果没有提供studentId，则返回基础作业信息（教师端）
         if (studentId != null) {
+            requireEnrollment(courseId, studentId);
             AssignmentResponse assignment = assignmentService.getAssignmentById(id, studentId);
             return ResponseEntity.ok(assignment);
         } else {
@@ -225,12 +293,20 @@ public class AssignmentController {
             @PathVariable Long id,
             @RequestBody Map<String, Object> request) {
         Long studentId = null;
+        Long courseId = null;
         if (request.containsKey("studentId")) {
             studentId = Long.valueOf(request.get("studentId").toString());
+        }
+        if (request.containsKey("courseId")) {
+            courseId = Long.valueOf(request.get("courseId").toString());
         }
         if (studentId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少学生ID");
         }
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID");
+        }
+        requireEnrollment(courseId, studentId);
 
         SubmissionRequest submissionRequest = new SubmissionRequest();
         if (request.containsKey("content")) {
@@ -256,10 +332,15 @@ public class AssignmentController {
     @GetMapping("/{id}/submissions/me")
     public ResponseEntity<SubmissionResponse> getMySubmission(
             @PathVariable Long id,
-            @RequestParam(required = false) Long studentId) {
+            @RequestParam(required = false) Long studentId,
+            @RequestParam(required = false) Long courseId) {
         if (studentId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少学生ID参数");
         }
+        if (courseId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "缺少课程ID参数");
+        }
+        requireEnrollment(courseId, studentId);
         SubmissionResponse submission = assignmentService.getMySubmission(id, studentId);
         return ResponseEntity.ok(submission);
     }

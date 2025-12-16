@@ -5,7 +5,23 @@
         <p class="subtitle">出勤管理</p>
         <h2>发布签到、查看记录与统计</h2>
       </div>
-      <el-button type="primary" @click="openCreate">发布签到</el-button>
+      <div class="page-actions">
+        <el-select
+          v-model="selectedCourseId"
+          placeholder="选择课程"
+          size="small"
+          style="min-width: 220px"
+          @change="handleCourseChange"
+        >
+          <el-option
+            v-for="c in userStore.myCourses"
+            :key="c.id"
+            :label="c.name"
+            :value="c.id"
+          />
+        </el-select>
+        <el-button type="primary" @click="openCreate">发布签到</el-button>
+      </div>
     </div>
 
     <el-card class="filter-card">
@@ -34,10 +50,11 @@
       <el-table-column prop="endTime" label="结束时间" width="180">
         <template #default="{ row }">{{ formatTime(row.endTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="260">
+      <el-table-column label="操作" width="360">
         <template #default="{ row }">
           <el-button size="small" @click="viewRecords(row)">记录</el-button>
           <el-button size="small" @click="viewStats(row)">统计</el-button>
+          <el-button size="small" type="primary" @click="goDetail(row)">详情页</el-button>
           <el-button size="small" type="warning" :disabled="row.status !== 'ACTIVE'" @click="endSession(row)">
             结束
           </el-button>
@@ -111,6 +128,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import dayjs from 'dayjs';
 import {
   createAttendanceSession,
@@ -120,7 +138,11 @@ import {
   getAttendanceStats
 } from '@/api/attendance';
 import { ElMessage } from 'element-plus';
+import { useUserStore } from '@/stores/useUserStore';
 
+const router = useRouter();
+const userStore = useUserStore();
+const selectedCourseId = ref(null);
 const sessions = ref([]);
 const loading = ref(false);
 const hasMore = ref(false);
@@ -132,7 +154,7 @@ const filters = ref({
 const createDialog = ref(false);
 const creating = ref(false);
 const createForm = ref({
-  courseId: 1,
+  courseId: null,
   title: '',
   code: '',
   durationMinutes: 10,
@@ -163,11 +185,40 @@ const statusType = (status) => {
   return map[status] || 'info';
 };
 
+const initCourse = async () => {
+  await userStore.hydrateUserFromCache();
+  // 如果还没有课程列表，可以在别的页面已加载；这里只从本地缓存取
+  const current = userStore.currentCourse;
+  if (current && current.id) {
+    selectedCourseId.value = current.id;
+  } else if (userStore.myCourses.length > 0) {
+    selectedCourseId.value = userStore.myCourses[0].id;
+    userStore.setCurrentCourse(userStore.myCourses[0]);
+  }
+};
+
+const handleCourseChange = (val) => {
+  const found = userStore.myCourses.find((c) => c.id === val);
+  if (found) {
+    userStore.setCurrentCourse(found);
+    filters.value.page = 1;
+    loadSessions();
+  }
+};
+
 const loadSessions = async () => {
   loading.value = true;
   try {
+    await initCourse();
+    const course = userStore.currentCourse;
+    if (!course || !course.id) {
+      ElMessage.warning('请先选择课程');
+      sessions.value = [];
+      loading.value = false;
+      return;
+    }
     const res = await listAttendanceSessions({
-      courseId: 1,
+      courseId: course.id,
       page: filters.value.page - 1,
       size: filters.value.size
     });
@@ -200,7 +251,7 @@ const changePage = (delta) => {
 
 const openCreate = () => {
   createForm.value = {
-    courseId: 1,
+    courseId: userStore.currentCourse?.id || null,
     title: '',
     code: '',
     durationMinutes: 10,
@@ -216,6 +267,15 @@ const handleCreate = async () => {
   }
   creating.value = true;
   try {
+    await userStore.hydrateUserFromCache();
+    if (!createForm.value.courseId) {
+      createForm.value.courseId = userStore.currentCourse?.id || null;
+    }
+    if (!createForm.value.courseId) {
+      ElMessage.warning('请先选择课程');
+      creating.value = false;
+      return;
+    }
     await createAttendanceSession({
       courseId: createForm.value.courseId,
       title: createForm.value.title || undefined,
@@ -298,6 +358,13 @@ const viewStats = async (row) => {
   }
 };
 
+const goDetail = (row) => {
+  router.push({
+    name: 'TeacherAttendanceDetail',
+    params: { id: row.id }
+  });
+};
+
 loadSessions();
 </script>
 
@@ -314,6 +381,11 @@ loadSessions();
 .subtitle {
   color: #888;
   margin: 0;
+}
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .filter-card {
   margin-bottom: 12px;
