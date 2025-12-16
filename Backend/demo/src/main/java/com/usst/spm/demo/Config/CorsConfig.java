@@ -1,4 +1,4 @@
-package com.usst.spm.demo.config;
+package com.usst.spm.demo.Config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

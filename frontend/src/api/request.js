@@ -62,7 +62,13 @@ request.interceptors.response.use(
       console.log('登录/注册响应:', { url, status: response.status, data });
     }
     
-    if (data && typeof data.code !== 'undefined') {
+    // 检查是否为标准API响应格式（必须同时包含 code 和 message 字段，且 code 是数字类型）
+    const isStandardResponse = data && 
+                               typeof data.code === 'number' && 
+                               typeof data.message === 'string' &&
+                               data.hasOwnProperty('timestamp');
+    
+    if (isStandardResponse) {
       // 标准格式：{code, message, data, timestamp, traceId}
       if (data.code === 200 || data.code === 201) {
         // 对于登录/注册，返回data字段（LoginResponse对象）
@@ -87,7 +93,7 @@ request.interceptors.response.use(
     }
     
     // 非标准格式：直接返回响应体数据（如 ResponseEntity<LoginResponse> 直接返回 LoginResponse）
-    // 对于登录/注册接口，这应该是LoginResponse对象
+    // 或者是业务对象（如 AttendanceSessionResponse、Page<T> 等）
     if (isAuthRequest) {
       console.log('登录/注册响应（非标准格式）:', data);
     }

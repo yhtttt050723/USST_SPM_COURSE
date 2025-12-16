@@ -5,8 +5,9 @@
         <div class="filter-bar">
           <el-radio-group v-model="filterType" @change="handleFilterChange">
           <el-radio-button label="all">全部作业</el-radio-button>
-          <el-radio-button label="progress">未完成</el-radio-button>
-          <el-radio-button label="submitted">已完成</el-radio-button>
+          <el-radio-button label="progress">未提交</el-radio-button>
+          <el-radio-button label="submitted">待批改</el-radio-button>
+          <el-radio-button label="graded">已批改</el-radio-button>
           <el-radio-button label="ended">已结束</el-radio-button>
       </el-radio-group>
     </div>
@@ -67,12 +68,16 @@ const assignments = computed(() => {
     // 未完成：未提交且未截止
     list = list.filter(a => a.submissionStatus === 'progress')
   } else if (filterType.value === 'submitted') {
-    // 已完成：已提交或已批改
-    list = list.filter(a => a.submissionStatus === 'submitted' || a.submissionStatus === 'graded')
-  } else if (filterType.value === 'ended') {
-    // 已结束：已截止
-    list = list.filter(a => a.submissionStatus === 'ended')
+  // 已提交待批改
+  list = list.filter(a => a.submissionStatus === 'submitted')
+} else if (filterType.value === 'graded') {
+  // 已批改可查看
+  list = list.filter(a => a.submissionStatus === 'graded')
+} else if (filterType.value === 'ended') {
+    // 已结束：截止时间已过
+    list = list.filter(a => a.dueAt && new Date(a.dueAt) < now)
   }
+  
   
   // 分为未截止和已截止两组
   const notExpired = []
@@ -196,5 +201,10 @@ onMounted(() => {
   height: auto;
   background-color: white;
   border-radius: 25px;
+}
+.homework-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 20px 20px 20px;
 }
 </style>

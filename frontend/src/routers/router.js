@@ -52,7 +52,7 @@ const router = createRouter({
             {
                 path: '/discussion',
                 name: 'StudentDiscussion',
-                component: () => import('@/views/Discussion.vue'),
+                component: () => import('@/views/public/discussion/Discussion.vue'),
                 meta: { requiresAuth: true, role: 'STUDENT' }
             },
             {
@@ -121,7 +121,7 @@ const router = createRouter({
             {
                 path: '/teacher/discussion',
                 name: 'TeacherDiscussion',
-                component: () => import('@/views/Discussion.vue'),
+                component: () => import('@/views/public/discussion/Discussion.vue'),
                 meta: { requiresAuth: true, role: 'TEACHER' }
             },
             {

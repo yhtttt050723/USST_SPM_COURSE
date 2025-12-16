@@ -26,12 +26,12 @@ const digits = computed(() => {
 <style scoped>
 .number-box {
     height: 100px;
-    width: 220px;
+    width: 250px;
     border-radius: 25px;
 }
 .outbox {
     display: inline-block;
-    width: 40px;
+    width: 48px;
     height: 85px;
     background-color: rgba(255, 255, 255, 0.2);
     border-radius: 10px;
@@ -41,7 +41,6 @@ const digits = computed(() => {
   display: inline-block;
   font-size: 48px;
   color: white;
-  margin: 0px 6px;
   line-height: 85px;
   width: 100%;
   text-align: center;
