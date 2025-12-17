@@ -5,8 +5,9 @@
         <div class="filter-bar">
           <el-radio-group v-model="filterType" @change="handleFilterChange">
           <el-radio-button label="all">全部作业</el-radio-button>
-          <el-radio-button label="progress">未完成</el-radio-button>
-          <el-radio-button label="submitted">已完成</el-radio-button>
+          <el-radio-button label="progress">未提交</el-radio-button>
+          <el-radio-button label="submitted">待批改</el-radio-button>
+          <el-radio-button label="graded">已批改</el-radio-button>
           <el-radio-button label="ended">已结束</el-radio-button>
       </el-radio-group>
     </div>
@@ -45,6 +46,7 @@ import { ElMessage } from 'element-plus'
 import HomeworkBox from '@/components/student/homework/HomeworkBox.vue'
 import { getAssignments } from '@/api/assignment'
 import { useUserStore } from '@/stores/useUserStore'
+import { listMyCourses } from '@/api/course'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -67,12 +69,16 @@ const assignments = computed(() => {
     // 未完成：未提交且未截止
     list = list.filter(a => a.submissionStatus === 'progress')
   } else if (filterType.value === 'submitted') {
-    // 已完成：已提交或已批改
-    list = list.filter(a => a.submissionStatus === 'submitted' || a.submissionStatus === 'graded')
-  } else if (filterType.value === 'ended') {
-    // 已结束：已截止
-    list = list.filter(a => a.submissionStatus === 'ended')
+  // 已提交待批改
+  list = list.filter(a => a.submissionStatus === 'submitted')
+} else if (filterType.value === 'graded') {
+  // 已批改可查看
+  list = list.filter(a => a.submissionStatus === 'graded')
+} else if (filterType.value === 'ended') {
+    // 已结束：截止时间已过
+    list = list.filter(a => a.dueAt && new Date(a.dueAt) < now)
   }
+  
   
   // 分为未截止和已截止两组
   const notExpired = []
@@ -112,13 +118,61 @@ const fetchAssignments = async () => {
     return
   }
   
+  // 确保有当前课程：先尝试从缓存恢复，如果还没有就调用 API 获取
+  let currentCourse = userStore.currentCourse
+  if (!currentCourse || !currentCourse.id) {
+    try {
+      // 从缓存恢复
+      userStore.hydrateUserFromCache()
+      currentCourse = userStore.currentCourse
+      
+      // 如果还是没有，从服务器获取课程列表
+      if (!currentCourse || !currentCourse.id) {
+        console.log('[homework] currentCourse is null, fetching courses...')
+        const resp = await listMyCourses()
+        const courses = resp.data || resp || []
+        console.log('[homework] fetched courses:', courses)
+        
+        if (courses.length > 0) {
+          userStore.setCourses(courses)
+          currentCourse = courses[0]
+          userStore.setCurrentCourse(currentCourse)
+          console.log('[homework] set currentCourse to first course:', currentCourse)
+        } else {
+          console.warn('[homework] no courses found, redirecting to join')
+          ElMessage.warning('请先加入课程')
+          router.push('/join')
+          return
+        }
+      }
+    } catch (error) {
+      console.error('[homework] failed to fetch courses:', error)
+      ElMessage.error('获取课程信息失败')
+      return
+    }
+  }
+  
   loading.value = true
   try {
-    const response = await getAssignments('all', userId.value, 'STUDENT')
-    rawAssignments.value = response.data || []
+    const response = await getAssignments('all', userId.value, currentCourse.id, 'STUDENT')
+    console.log('获取作业列表响应:', response)
+    
+    // 处理响应数据：可能是数组直接返回，也可能是 {data: []} 格式
+    if (Array.isArray(response)) {
+      // 直接返回数组
+      rawAssignments.value = response
+    } else if (response && response.data && Array.isArray(response.data)) {
+      // 标准格式：{code, data: []}
+      rawAssignments.value = response.data
+    } else {
+      console.warn('响应数据格式异常:', response)
+      rawAssignments.value = []
+    }
+    
+    console.log('解析后的作业列表:', rawAssignments.value)
   } catch (error) {
     console.error('获取作业列表失败:', error)
-    ElMessage.error('获取作业列表失败')
+    ElMessage.error(error.message || '获取作业列表失败')
     rawAssignments.value = []
   } finally {
     loading.value = false
@@ -139,6 +193,12 @@ const handleFilterChange = () => {
 }
 
 onMounted(() => {
+  // 确保从缓存恢复用户信息
+  if (!userStore.currentUser) {
+    userStore.hydrateUserFromCache()
+  }
+  console.log('当前用户信息:', userStore.currentUser)
+  console.log('用户ID:', userId.value)
   fetchAssignments()
 })
 </script>
@@ -176,5 +236,10 @@ onMounted(() => {
   height: auto;
   background-color: white;
   border-radius: 25px;
+}
+.homework-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 20px 20px 20px;
 }
 </style>

@@ -127,9 +127,16 @@ const handleSubmit = async () => {
     return
   }
 
+  await userStore.hydrateUserFromCache()
   const userId = currentUser.value.id
+  const course = userStore.currentCourse
+  const courseId = course?.id
   if (!userId) {
     ElMessage.warning('请先登录')
+    return
+  }
+  if (!courseId) {
+    ElMessage.warning('请先选择课程')
     return
   }
 
@@ -150,9 +157,21 @@ const handleSubmit = async () => {
           formData.append('uploaderId', userId.toString())
           
           const uploadResponse = await uploadFile(formData)
-          // 后端直接返回文件信息对象（不是标准的 {code, data} 格式）
-          if (uploadResponse.data && uploadResponse.data.id) {
-            attachmentIds.push(uploadResponse.data.id)
+          // 兼容两种返回格式：
+          // 1) 直接返回文件对象 { id, fileName, ... }
+          // 2) 标准格式 { code, data: { id, fileName, ... } }
+          let fileId = null
+          if (uploadResponse && uploadResponse.id) {
+            fileId = uploadResponse.id
+          } else if (uploadResponse && uploadResponse.data && uploadResponse.data.id) {
+            fileId = uploadResponse.data.id
+          }
+          
+          if (fileId) {
+            attachmentIds.push(fileId)
+          } else {
+            console.warn('上传响应缺少文件ID，响应内容:', uploadResponse)
+            ElMessage.error(`文件 ${file.name} 上传成功但未返回文件ID`)
           }
         } catch (error) {
           console.error('文件上传失败:', error)
@@ -167,11 +186,14 @@ const handleSubmit = async () => {
     uploading.value = false
 
     // 提交作业
-    await submitAssignment(props.assignmentId, {
+    const payload = {
       content: submitContent.value,
       studentId: userId,
-      attachmentIds: attachmentIds
-    })
+      attachmentIds: attachmentIds,
+      courseId
+    }
+    console.log('[submit] 提交作业 payload:', payload)
+    await submitAssignment(props.assignmentId, payload)
     
     ElMessage.success('作业提交成功')
     
@@ -182,7 +204,8 @@ const handleSubmit = async () => {
     emit('submitted')
   } catch (error) {
     console.error('提交作业失败:', error)
-    ElMessage.error(error.message || '提交作业失败，请重试')
+    const msg = error?.response?.data?.message || error.message || '提交作业失败，请重试'
+    ElMessage.error(msg)
   } finally {
     submitting.value = false
     uploading.value = false

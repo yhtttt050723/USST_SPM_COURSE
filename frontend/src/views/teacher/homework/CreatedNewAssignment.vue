@@ -46,6 +46,24 @@
 
     <div class="meta">
       <div class="item">
+        <span class="lable">所属课程 :</span>
+        <span class="value">
+          <el-select
+            v-model="selectedCourseId"
+            placeholder="请选择课程"
+            style="width: 260px"
+            filterable
+          >
+            <el-option
+              v-for="c in courseOptions"
+              :key="c.id"
+              :label="formatCourseLabel(c)"
+              :value="c.id"
+            />
+          </el-select>
+        </span>
+      </div>
+      <div class="item">
         <span class="lable">总&nbsp; &nbsp; &nbsp; &nbsp;分 : </span>
         <span class="value">
           <el-input-number v-model="formModel.totalScore" :min="1" :max="500" @change="handleChange" />
@@ -85,13 +103,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { createAssignment as createAssignmentApi } from '@/api/teacher'
+import { useUserStore } from '@/stores/useUserStore'
+import { listMyCourses } from '@/api/course'
 
 const router = useRouter()
+const userStore = useUserStore()
+const selectedCourseId = ref(null)
+const courseOptions = ref([])
 
 const formModel = ref({
   title: '',
@@ -102,11 +125,14 @@ const formModel = ref({
   times: '1' // 修改为字符串以匹配 radio-button 的 value
 })
 const defaultTime = new Date(2025, 1, 1, 23, 59, 59)
+const size = 'default'
 
 // 禁用今天之前的日期
 const disabledDate = (time) => {
   return time.getTime() < Date.now() - 24 * 60 * 60 * 1000
 }
+
+const handleChange = () => {}
 
 // 创建作业
 const createAssignment = async () => {
@@ -116,19 +142,28 @@ const createAssignment = async () => {
     return
   }
   
+  if (!selectedCourseId.value) {
+    ElMessage.warning('请选择课程')
+    return
+  }
+
   if (!formModel.value.dueDate) {
     ElMessage.warning('请选择截止时间')
     return
   }
 
   try {
+    await userStore.hydrateUserFromCache()
+    const courseId = selectedCourseId.value
+
     const payload = {
       title: formModel.value.title,
       description: formModel.value.description,
       type: formModel.value.type,
       dueAt: formModel.value.dueDate,
       totalScore: formModel.value.totalScore,
-      allowResubmit: formModel.value.times === '1' 
+      allowResubmit: formModel.value.times === '1',
+      courseId
     }
     
     await createAssignmentApi(payload)
@@ -144,6 +179,31 @@ const createAssignment = async () => {
   }
 }
 
+// 初始化课程列表和默认选中课程
+const initCourses = async () => {
+  await userStore.hydrateUserFromCache()
+  if (!userStore.myCourses.length) {
+    try {
+      const res = await listMyCourses()
+      const data = res?.data || res || []
+      userStore.setCourses(data)
+    } catch (e) {
+      console.error('加载课程失败', e)
+    }
+  }
+  courseOptions.value = userStore.myCourses
+  if (userStore.currentCourse?.id) {
+    selectedCourseId.value = userStore.currentCourse.id
+  } else if (courseOptions.value.length > 0) {
+    selectedCourseId.value = courseOptions.value[0].id
+    userStore.setCurrentCourse(courseOptions.value[0])
+  }
+}
+
+onMounted(() => {
+  initCourses()
+})
+
 const goBack = () => {
   router.back()
 }
@@ -158,6 +218,16 @@ const reset = () => {
     times: '1'
   }
   ElMessage.info('表单已重置')
+}
+
+// 课程显示：名称 + 年份 + 学期
+const formatCourseLabel = (c) => {
+  if (!c) return ''
+  const parts = [c.name]
+  if (c.academicYear) parts.push(c.academicYear)
+  if (c.semester) parts.push(c.semester)
+  if (c.term) parts.push(c.term)
+  return parts.filter(Boolean).join(' - ')
 }
 </script>
 

@@ -4,6 +4,9 @@ public class DiscussionCreateRequest {
     private Long courseId;
     private String title;
     private String content;
+    private Boolean pinned;
+    private String status;
+    private Boolean allowComment;
 
     public Long getCourseId() {
         return courseId;
@@ -27,6 +30,30 @@ public class DiscussionCreateRequest {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public Boolean getPinned() {
+        return pinned;
+    }
+
+    public void setPinned(Boolean pinned) {
+        this.pinned = pinned;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Boolean getAllowComment() {
+        return allowComment;
+    }
+
+    public void setAllowComment(Boolean allowComment) {
+        this.allowComment = allowComment;
     }
 }
 

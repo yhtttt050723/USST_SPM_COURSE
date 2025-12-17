@@ -2,6 +2,8 @@ package com.usst.spm.demo.dto;
 
 import java.time.LocalDateTime;
 
+import java.util.List;
+
 public class AssignmentCreateRequest {
     private Long courseId;
     private String title;
@@ -9,7 +11,9 @@ public class AssignmentCreateRequest {
     private String type;
     private Integer totalScore;
     private Boolean allowResubmit;
+    private Integer maxResubmitCount; // 最大重提交次数
     private LocalDateTime dueAt;
+    private List<Long> attachmentIds; // 作业附件ID列表
 
     public Long getCourseId() {
         return courseId;
@@ -65,6 +69,22 @@ public class AssignmentCreateRequest {
 
     public void setDueAt(LocalDateTime dueAt) {
         this.dueAt = dueAt;
+    }
+
+    public Integer getMaxResubmitCount() {
+        return maxResubmitCount;
+    }
+
+    public void setMaxResubmitCount(Integer maxResubmitCount) {
+        this.maxResubmitCount = maxResubmitCount;
+    }
+
+    public List<Long> getAttachmentIds() {
+        return attachmentIds;
+    }
+
+    public void setAttachmentIds(List<Long> attachmentIds) {
+        this.attachmentIds = attachmentIds;
     }
 }
 

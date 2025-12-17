@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import StudentHome from '@/views/student/home/Home.vue'
 import { useUserStore } from '@/stores/useUserStore'
 import { ElMessage } from 'element-plus'
 
@@ -21,7 +22,7 @@ const router = createRouter({
             {
                 path: '/home',
                 name: 'StudentHome',
-                component: () => import('@/views/student/home/Home.vue'),
+                component: StudentHome,
                 meta: { requiresAuth: true, role: 'STUDENT' }
             },
             {
@@ -55,7 +56,7 @@ const router = createRouter({
                 meta: { requiresAuth: true, role: 'STUDENT' }
             },
             {
-                path: '/discussion/detail',
+                path: '/discussion/:id',
                 name: 'StudentDiscussionDetail',
                 component: () => import('@/views/public/discussion/DiscussionDetail.vue'),
                 meta: { requiresAuth: true, role: 'STUDENT' }
@@ -88,7 +89,7 @@ const router = createRouter({
                 meta: { requiresAuth: true, role: 'TEACHER' }
             },
             {
-                path: '/teacher/attendance/detail',
+                path: '/teacher/attendance/:id',
                 name: 'TeacherAttendanceDetail',
                 component: () => import('@/views/teacher/attendance/AttendanceDetail.vue'),
                 meta: { requiresAuth: true, role: 'TEACHER' }
@@ -118,13 +119,19 @@ const router = createRouter({
                 meta: { requiresAuth: true, role: 'TEACHER' }
             },
             {
+                path: '/teacher/announcement',
+                name: 'TeacherAnnouncement',
+                component: () => import('@/views/teacher/announcement/Announcement.vue'),
+                meta: { requiresAuth: true, role: 'TEACHER' }
+            },
+            {
                 path: '/teacher/discussion',
                 name: 'TeacherDiscussion',
                 component: () => import('@/views/public/discussion/Discussion.vue'),
                 meta: { requiresAuth: true, role: 'TEACHER' }
             },
             {
-                path: '/teacher/discussion/detail',
+                path: '/teacher/discussion/:id',
                 name: 'TeacherDiscussionDetail',
                 component: () => import('@/views/public/discussion/DiscussionDetail.vue'),
                 meta: { requiresAuth: true, role: 'TEACHER' }

@@ -1,22 +1,35 @@
 import request from './request';
 
-/**
- * 获取公告列表
- * @returns {Promise} 返回 {code, message, data, timestamp, traceId}
- */
+// 课程列表（当前用户可访问的）
+export function listMyCourses() {
+  return request.get('/courses');
+}
+
+// 课程详情
+export function getCourse(id) {
+  return request.get(`/courses/${id}`);
+}
+
+// 教师生成邀请码
+export function createInvite(courseId, payload) {
+  return request.post(`/courses/${courseId}/invites`, payload);
+}
+
+// 教师失效邀请码
+export function revokeInvite(courseId, code) {
+  return request.delete(`/courses/${courseId}/invites/${code}`);
+}
+
+// 加入课程（输入邀请码）
+export function joinCourseByCode(code) {
+  return request.post('/courses/join', { code });
+}
+
+// 公告相关（保留旧接口）
 export function getAnnouncements() {
   return request.get('/course/announcements');
 }
 
-/**
- * 发布公告（教师）
- * @param {Object} announcement - 公告信息
- * @param {string} announcement.title - 公告标题（必填）
- * @param {string} announcement.content - 公告内容（必填）
- * @param {string} [announcement.visibleFrom] - 可见开始时间（可选，ISO 8601 格式）
- * @param {string} [announcement.visibleTo] - 可见结束时间（可选，ISO 8601 格式）
- * @returns {Promise} 返回 {code: 201, message, data, timestamp, traceId}
- */
 export function createAnnouncement(announcement) {
   return request.post('/course/announcements', announcement);
 }

@@ -24,6 +24,11 @@
               <span class="title">出勤管理</span>
             </template>
           </el-menu-item>
+          <el-menu-item class="menu-item" index="/teacher/announcement">
+            <template #title>
+              <span class="title">公告管理</span>
+            </template>
+          </el-menu-item>
           <el-menu-item class="menu-item" index="/teacher/discussion">
             <template #title>
               <span class="title">讨论区</span>
@@ -59,6 +64,8 @@ const currentRoute = computed(() => {
     return '/teacher/attendance'
   } else if(path.startsWith('/teacher/homework')) {
     return '/teacher/homework'
+  } else if(path.startsWith('/teacher/announcement')) {
+    return '/teacher/announcement'
   } else if(path.startsWith('/teacher/discussion')) {
     return '/teacher/discussion'
   } else {

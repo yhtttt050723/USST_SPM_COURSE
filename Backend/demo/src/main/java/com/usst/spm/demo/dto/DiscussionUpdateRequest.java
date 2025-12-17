@@ -3,8 +3,8 @@ package com.usst.spm.demo.dto;
 public class DiscussionUpdateRequest {
     private String title;
     private String content;
-    private Boolean isPinned;
-    private Boolean isLocked;
+    private String status;
+    private Boolean allowComment;
 
     public String getTitle() {
         return title;
@@ -22,20 +22,20 @@ public class DiscussionUpdateRequest {
         this.content = content;
     }
 
-    public Boolean getIsPinned() {
-        return isPinned;
+    public String getStatus() {
+        return status;
     }
 
-    public void setIsPinned(Boolean isPinned) {
-        this.isPinned = isPinned;
+    public void setStatus(String status) {
+        this.status = status;
     }
 
-    public Boolean getIsLocked() {
-        return isLocked;
+    public Boolean getAllowComment() {
+        return allowComment;
     }
 
-    public void setIsLocked(Boolean isLocked) {
-        this.isLocked = isLocked;
+    public void setAllowComment(Boolean allowComment) {
+        this.allowComment = allowComment;
     }
 }
 

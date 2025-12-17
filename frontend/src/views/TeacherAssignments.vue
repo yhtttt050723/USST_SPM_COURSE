@@ -87,14 +87,16 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
-import { ElButton, ElIcon, ElDialog, ElForm, ElFormItem, ElInput, ElInputNumber, ElDatePicker, ElSwitch } from 'element-plus'
-import { getAssignments as getTeacherAssignments, createAssignment } from '@/api/teacher'
+import { ElButton, ElIcon, ElDialog, ElForm, ElFormItem, ElInput, ElInputNumber, ElDatePicker, ElSwitch, ElMessage } from 'element-plus'
+import { getTeacherAssignments, createAssignment } from '@/api/teacher'
+import { useUserStore } from '@/stores/useUserStore'
 
 defineOptions({
   name: 'TeacherAssignmentsView'
 })
 
 const assignments = ref([])
+const userStore = useUserStore()
 const showCreateDialog = ref(false)
 const saving = ref(false)
 const editingAssignment = ref(null)
@@ -119,8 +121,13 @@ const formatDeadline = (dateString) => {
 }
 
 const fetchAssignments = async () => {
+  const courseId = userStore.currentCourse?.id
+  if (!courseId) {
+    ElMessage.error('请选择课程')
+    return
+  }
   try {
-    const response = await getTeacherAssignments()
+    const response = await getTeacherAssignments(courseId)
     assignments.value = response.data || []
   } catch (error) {
     console.error('获取作业列表失败:', error)
@@ -149,6 +156,11 @@ const fetchAssignments = async () => {
 }
 
 const saveAssignment = async () => {
+  const courseId = userStore.currentCourse?.id
+  if (!courseId) {
+    ElMessage.error('请选择课程')
+    return
+  }
   if (!assignmentForm.value.title) {
     alert('请输入作业标题')
     return
@@ -164,7 +176,10 @@ const saveAssignment = async () => {
       // 更新作业逻辑（待实现）
       console.log('更新作业:', assignmentForm.value)
     } else {
-      await createAssignment(assignmentForm.value)
+      await createAssignment({
+        ...assignmentForm.value,
+        courseId
+      })
     }
     showCreateDialog.value = false
     resetForm()

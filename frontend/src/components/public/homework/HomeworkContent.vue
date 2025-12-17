@@ -9,6 +9,9 @@
     <div v-else-if="assignment" class="content">
       <div class="header">
         <h2 class="title">{{ assignment.title }}</h2>
+        <div class="course-tag" v-if="courseLabel">
+          {{ courseLabel }}
+        </div>
       </div>
 
       <div class="info-row">
@@ -88,25 +91,53 @@ const emit = defineEmits(['submit', 'viewSubmission'])
 const userStore = useUserStore()
 const loading = ref(false)
 const assignment = ref(null)
-const user = computed(() => userStore.currentUser || {})
+const courseLabel = ref('')
 
 // 获取作业详情
 const fetchAssignment = async () => {
   if (!props.assignmentId) return
   
-  const userId = user.value.id
-  if (!userId) {
+  await userStore.hydrateUserFromCache()
+  const currentUser = userStore.currentUser || {}
+  const userId = currentUser.id
+  const userRole = currentUser.role
+  const course = userStore.currentCourse
+  const courseId = course?.id
+  courseLabel.value = formatCourseLabel(course)
+  if (!courseId) {
+    ElMessage.warning('请先选择课程')
+    return
+  }
+  
+  // 学生端需要userId，教师端不需要
+  if (!userId && userRole !== 'TEACHER') {
     ElMessage.warning('请先登录')
     return
   }
 
   loading.value = true
   try {
-    const response = await getAssignmentById(props.assignmentId, userId)
-    assignment.value = response.data
+    // 教师端不传studentId，学生端传studentId
+    const studentId = userRole === 'TEACHER' ? null : userId
+    const response = await getAssignmentById(props.assignmentId, studentId, courseId)
+    console.log('获取作业详情响应:', response)
+    
+    // 处理响应数据：可能是直接返回对象，也可能是 {data: {}} 格式
+    if (response && response.id) {
+      // 直接返回AssignmentResponse对象
+      assignment.value = response
+    } else if (response && response.data && response.data.id) {
+      // 标准格式：{code, data: AssignmentResponse}
+      assignment.value = response.data
+    } else {
+      console.warn('响应数据格式异常:', response)
+      assignment.value = null
+    }
+    
+    console.log('解析后的作业详情:', assignment.value)
   } catch (error) {
     console.error('获取作业详情失败:', error)
-    ElMessage.error('获取作业详情失败')
+    ElMessage.error(error.message || '获取作业详情失败')
     assignment.value = null
   } finally {
     loading.value = false
@@ -155,6 +186,16 @@ const getStatusText = (status) => {
     'ended': '已截止'
   }
   return map[status] || '未知'
+}
+
+// 课程显示：名称 + 年份 + 学期
+const formatCourseLabel = (c) => {
+  if (!c) return ''
+  const parts = [c.name]
+  if (c.academicYear) parts.push(c.academicYear)
+  if (c.semester) parts.push(c.semester)
+  if (c.term) parts.push(c.term)
+  return parts.filter(Boolean).join(' - ')
 }
 
 // 监听 assignmentId 变化

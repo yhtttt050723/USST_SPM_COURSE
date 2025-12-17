@@ -191,6 +191,20 @@ const gradingForm = ref({
   feedback: ''
 })
 
+// 将后端 attachments 映射为文件列表，供下载展示
+const normalizeSubmissionFiles = (sub) => {
+  if (!sub) return
+  if (sub.attachments && Array.isArray(sub.attachments)) {
+    sub.files = sub.attachments.map(att => ({
+      id: att.fileId || att.id,
+      fileName: att.fileName || att.originalName,
+      originalName: att.originalName || att.fileName,
+      storagePath: att.storagePath,
+      fileSize: att.fileSize || 0
+    }))
+  }
+}
+
 const fetchSubmissionDetail = async () => {
   const submissionId = route.params.submissionId
   if (!submissionId) {
@@ -199,27 +213,41 @@ const fetchSubmissionDetail = async () => {
     return
   }
 
+  // 先恢复用户和课程上下文
+  await userStore.hydrateUserFromCache()
+  const course = userStore.currentCourse
+  if (!course || !course.id) {
+    ElMessage.warning('请先选择课程')
+    loading.value = false
+    return
+  }
+
   loading.value = true
   try {
     const assignmentId = route.query.assignmentId
     
     if (assignmentId) {
+      // 教师端获取作业详情：只需要带上 courseId，不需要 studentId
       const assignmentRes = await request.get(`/assignments/${assignmentId}`, {
-        params: { studentId: userStore.currentUser?.id || 1 }
+        params: { courseId: course.id }
       })
-      assignment.value = assignmentRes.data
+      assignment.value = assignmentRes?.data || assignmentRes
 
+      // 获取该作业的所有提交，再从中找到当前 submissionId
       const submissionsRes = await request.get(`/assignments/${assignmentId}/submissions`)
-      const submissions = submissionsRes.data || []
+      const submissions = Array.isArray(submissionsRes)
+        ? submissionsRes
+        : (submissionsRes?.data || [])
       submission.value = submissions.find(s => s.id == submissionId)
+      normalizeSubmissionFiles(submission.value)
       
       if (!submission.value) {
         ElMessage.warning('未找到该提交记录')
       }
     } else {
-      // 如果没有传 assignmentId，则需要遍历所有作业以查找该提交
+      // 如果没有传 assignmentId，则需要遍历当前课程下的所有作业以查找该提交
       const assignmentsRes = await request.get('/assignments', {
-        params: { role: 'TEACHER' }
+        params: { role: 'TEACHER', courseId: course.id }
       })
       const assignments = assignmentsRes.data || []
       
@@ -227,12 +255,15 @@ const fetchSubmissionDetail = async () => {
       for (const assign of assignments) {
         try {
           const submissionsRes = await request.get(`/assignments/${assign.id}/submissions`)
-          const submissions = submissionsRes.data || []
+          const submissions = Array.isArray(submissionsRes)
+            ? submissionsRes
+            : (submissionsRes?.data || [])
           const foundSubmission = submissions.find(s => s.id == submissionId)
           
           if (foundSubmission) {
             submission.value = foundSubmission
             assignment.value = assign
+            normalizeSubmissionFiles(submission.value)
             found = true
             break
           }
@@ -248,14 +279,12 @@ const fetchSubmissionDetail = async () => {
     }
 
     if (submission.value && assignment.value) {
-    if (submission.value && assignment.value) {
       // 初始化批改表单
       gradingForm.value = {
         score: submission.value.score || null,
         feedback: submission.value.feedback || ''
       }
     }
-  }
   } catch (error) {
     console.error('获取提交详情失败:', error)
     ElMessage.error(error.response?.data?.message || '获取提交详情失败')

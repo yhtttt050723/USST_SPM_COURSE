@@ -6,9 +6,9 @@ import request from './request';
  * @param {number} studentId - 学生ID
  * @param {string} role - 用户角色: STUDENT, TEACHER
  */
-export function getAssignments(status = 'all', studentId, role) {
+export function getAssignments(status = 'all', studentId, courseId, role) {
   return request.get('/assignments', {
-    params: { status, studentId, role }
+    params: { status, studentId, courseId, role }
   });
 }
 
@@ -17,9 +17,9 @@ export function getAssignments(status = 'all', studentId, role) {
  * @param {number} id - 作业ID
  * @param {number} studentId - 学生ID（可选）
  */
-export function getAssignmentById(id, studentId) {
+export function getAssignmentById(id, studentId, courseId) {
   return request.get(`/assignments/${id}`, {
-    params: studentId ? { studentId } : {}
+    params: studentId ? { studentId, courseId } : { courseId }
   });
 }
 
@@ -37,9 +37,9 @@ export function submitAssignment(id, payload) {
  * @param {number} id - 作业ID
  * @param {number} studentId - 学生ID
  */
-export function getMySubmission(id, studentId) {
+export function getMySubmission(id, studentId, courseId) {
   return request.get(`/assignments/${id}/submissions/me`, {
-    params: { studentId }
+    params: { studentId, courseId }
   });
 }
 
@@ -57,9 +57,9 @@ export function gradeSubmission(id, submissionId, payload) {
  * 获取我的所有成绩
  * @param {number} studentId - 学生ID
  */
-export function getMyGrades(studentId) {
+export function getMyGrades(studentId, courseId) {
   return request.get('/assignments/grades/me', {
-    params: { studentId }
+    params: { studentId, courseId }
   });
 }
 

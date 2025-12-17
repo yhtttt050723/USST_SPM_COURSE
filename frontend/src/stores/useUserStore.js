@@ -3,6 +3,8 @@ import { ref } from 'vue'
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref(null)
+  const myCourses = ref([])
+  const currentCourse = ref(null)
 
   const setUser = (payload) => {
     if (payload) {
@@ -17,6 +19,16 @@ export const useUserStore = defineStore('user', () => {
       currentUser.value = null
       localStorage.removeItem('spm-user')
     }
+  }
+
+  const setCourses = (courses) => {
+    myCourses.value = courses || []
+    localStorage.setItem('spm-courses', JSON.stringify(myCourses.value))
+  }
+
+  const setCurrentCourse = (course) => {
+    currentCourse.value = course
+    localStorage.setItem('spm-current-course', JSON.stringify(course))
   }
 
   const hydrateUserFromCache = () => {
@@ -34,18 +46,43 @@ export const useUserStore = defineStore('user', () => {
         }
       }
     }
+    if (!myCourses.value.length) {
+      const cachedCourses = localStorage.getItem('spm-courses')
+      if (cachedCourses) {
+        myCourses.value = JSON.parse(cachedCourses)
+      }
+    }
+    if (!currentCourse.value) {
+      const cachedCourse = localStorage.getItem('spm-current-course')
+      if (cachedCourse) {
+        currentCourse.value = JSON.parse(cachedCourse)
+      }
+    }
     return currentUser.value
   }
 
   const clearUser = () => {
     currentUser.value = null
     localStorage.removeItem('spm-user')
+    clearCourse()
+  }
+
+  const clearCourse = () => {
+    myCourses.value = []
+    currentCourse.value = null
+    localStorage.removeItem('spm-courses')
+    localStorage.removeItem('spm-current-course')
   }
 
   return {
     currentUser,
+    myCourses,
+    currentCourse,
     setUser,
+    setCourses,
+    setCurrentCourse,
     hydrateUserFromCache,
-    clearUser
+    clearUser,
+    clearCourse
   }
 })

@@ -28,10 +28,32 @@ public class Assignment {
     @Column(name = "allow_resubmit")
     private Boolean allowResubmit;
 
+    @Column(name = "max_resubmit_count")
+    private Integer maxResubmitCount;
+
     @Column(name = "due_at")
     private LocalDateTime dueAt;
 
+    /**
+     * 版本号（从1开始，每次重新发布+1）
+     */
+    @Column(name = "version")
+    private Integer version;
+
+    /**
+     * 原始作业ID（同一作业链路的根ID，用于版本化管理）
+     * 如果origin_id为null，说明这是原始作业，origin_id = id
+     */
+    @Column(name = "origin_id")
+    private Long originId;
+
+    /**
+     * 作业状态：DRAFT（草稿）、PUBLISHED（已发布）、CLOSED（已截止）、ARCHIVED（已归档）
+     */
     private String status;
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -39,13 +61,24 @@ public class Assignment {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "created_by")
+    private Long createdBy;
+
+    @Column(name = "updated_by")
+    private Long updatedBy;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     private Integer deleted;
 
     public Assignment() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-        this.status = "ONGOING";
+        this.status = "DRAFT";
         this.deleted = 0;
+        this.maxResubmitCount = 0;
+        this.version = 1; // 默认版本号为1
     }
 
     public Long getId() {
@@ -142,6 +175,62 @@ public class Assignment {
 
     public void setDeleted(Integer deleted) {
         this.deleted = deleted;
+    }
+
+    public Integer getMaxResubmitCount() {
+        return maxResubmitCount;
+    }
+
+    public void setMaxResubmitCount(Integer maxResubmitCount) {
+        this.maxResubmitCount = maxResubmitCount;
+    }
+
+    public Integer getVersion() {
+        return version;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
+    }
+
+    public Long getOriginId() {
+        return originId;
+    }
+
+    public void setOriginId(Long originId) {
+        this.originId = originId;
+    }
+
+    public LocalDateTime getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(LocalDateTime publishedAt) {
+        this.publishedAt = publishedAt;
+    }
+
+    public Long getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(Long createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public Long getUpdatedBy() {
+        return updatedBy;
+    }
+
+    public void setUpdatedBy(Long updatedBy) {
+        this.updatedBy = updatedBy;
+    }
+
+    public LocalDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
     }
 }
 

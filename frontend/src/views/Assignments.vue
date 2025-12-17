@@ -111,14 +111,14 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { getAssignments, submitAssignment as submitAssignmentApi } from '@/api/assignment'
 import { uploadFile } from '@/api/file'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/useUserStore'
 import { ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElMessage, ElUpload, ElSelect, ElOption } from 'element-plus'
 
 defineOptions({
   name: 'AssignmentsView'
 })
 
-const { currentUser } = useUserStore()
+const { currentUser, currentCourse } = useUserStore()
 const filterStatus = ref('all')
 const assignments = ref([])
 const loading = ref(false)
@@ -150,11 +150,16 @@ const fetchAssignments = async () => {
     console.warn('用户未登录，无法获取作业列表')
     return
   }
+  if (!currentCourse.value || !currentCourse.value.id) {
+    console.warn('当前课程未选择，无法获取作业列表')
+    return
+  }
 
   loading.value = true
   try {
-    const response = await getAssignments(filterStatus.value, currentUser.value.id)
-    assignments.value = response.data.map(item => ({
+    const response = await getAssignments(filterStatus.value, currentUser.value.id, currentCourse.value.id)
+    const list = response.data || response || []
+    assignments.value = list.map(item => ({
       id: item.id,
       title: item.title,
       desc: item.description || '',
@@ -255,7 +260,7 @@ const submitAssignment = async () => {
     return
   }
 
-  if (!currentUser.value?.id || !currentAssignment.value) {
+  if (!currentUser.value?.id || !currentAssignment.value || !currentCourse.value?.id) {
     ElMessage.error('提交失败，请重试')
     return
   }
@@ -291,7 +296,8 @@ const submitAssignment = async () => {
     await submitAssignmentApi(currentAssignment.value.id, {
       content: submitForm.value.content || '',
       attachmentIds: attachmentIds,
-      studentId: currentUser.value.id
+      studentId: currentUser.value.id,
+      courseId: currentCourse.value.id
     })
     
     ElMessage.success('提交成功')

@@ -112,19 +112,20 @@
 import { computed, markRaw, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { House, Document, UserFilled, ChatDotRound } from '@element-plus/icons-vue'
-import { ElIcon, ElTag } from 'element-plus'
+import { ElIcon, ElTag, ElMessage } from 'element-plus'
 
 import Assignments from './Assignments.vue'
 import Attendance from './Attendance.vue'
 import Discussion from './Discussion.vue'
 import TeacherAssignments from './TeacherAssignments.vue'
 import TeacherGrading from './TeacherGrading.vue'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/useUserStore'
 import { getAssignments } from '@/api/assignment'
 import { getAssignments as getTeacherAssignmentsApi } from '@/api/teacher'
+import { listMyCourses } from '@/api/course'
 
 const router = useRouter()
-const { currentUser, hydrateUserFromCache } = useUserStore()
+const { currentUser, currentCourse, setCourses, setCurrentCourse, hydrateUserFromCache } = useUserStore()
 const activeNav = ref('home')
 
 const user = computed(() => currentUser.value || {})
@@ -172,10 +173,10 @@ const formatDeadline = (dateString) => {
 
 // 获取学生作业数据
 const fetchStudentAssignments = async () => {
-  if (isTeacher.value || !currentUser.value?.id) return
+  if (isTeacher.value || !currentUser.value?.id || !currentCourse.value?.id) return
 
   try {
-    const response = await getAssignments('all', currentUser.value.id)
+    const response = await getAssignments('all', currentUser.value.id, currentCourse.value.id)
     studentAssignments.value = response.data || []
     
     // 计算待办作业（未提交且未截止的作业）
@@ -213,10 +214,10 @@ const teacherAssignments = ref([])
 
 // 获取教师端作业数据
 const fetchTeacherAssignments = async () => {
-  if (!isTeacher.value || !currentUser.value?.id) return
+  if (!isTeacher.value || !currentUser.value?.id || !currentCourse.value?.id) return
 
   try {
-    const response = await getTeacherAssignmentsApi()
+    const response = await getTeacherAssignmentsApi(currentCourse.value.id)
     teacherAssignments.value = response.data || []
   } catch (error) {
     console.error('获取作业数据失败:', error)
@@ -292,6 +293,21 @@ onMounted(async () => {
     if (!cachedUser) {
       router.replace('/login')
       return
+    }
+    // 课程上下文
+    const { data } = await listMyCourses()
+    setCourses(data)
+    if (!data.length) {
+      router.replace('/join')
+      return
+    }
+    if (!currentCourse.value) {
+      setCurrentCourse(data[0])
+    } else {
+      const exist = data.find((c) => c.id === currentCourse.value.id)
+      if (!exist) {
+        setCurrentCourse(data[0])
+      }
     }
     // 根据角色获取数据
     if (isTeacher.value) {

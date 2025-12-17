@@ -57,6 +57,7 @@ import { ElMessage } from 'element-plus'
 import { Clock, ArrowRight } from '@element-plus/icons-vue'
 import { getAssignments } from '@/api/assignment'
 import { useUserStore } from '@/stores/useUserStore'
+import { listMyCourses } from '@/api/course'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -68,12 +69,17 @@ const loading = ref(false)
 // 当前用户信息
 const currentUser = computed(() => userStore.currentUser || {})
 const userId = computed(() => currentUser.value.id)
+const currentCourse = computed(() => userStore.currentCourse)
 
-// 计算属性：获取待办作业（submissionStatus 为 'progress' 的作业）
+// 计算属性：获取待办作业（未提交/进行中）
 const pendingAssignments = computed(() => {
   return assignments.value
-    .filter(assignment => assignment.submissionStatus === 'progress')
-    .sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt)) // 按截止时间排序
+    .filter((assignment) => {
+      const status = (assignment.submissionStatus || assignment.status || '').toUpperCase()
+      // 未提交/进行中/默认状态视为待办；已提交/已批改/已完成不再显示
+      return status === '' || status === 'PROGRESS' || status === 'ONGOING' || status === 'NOT_SUBMITTED'
+    })
+    .sort((a, b) => new Date(a.dueAt || 0) - new Date(b.dueAt || 0)) // 按截止时间排序
 })
 
 // 计算属性：获取最近的三条待办作业
@@ -88,10 +94,40 @@ const fetchAssignments = async () => {
     return
   }
 
+  // 确保有当前课程
+  let course = currentCourse.value
+  if (!course || !course.id) {
+    try {
+      // 尝试从缓存恢复
+      userStore.hydrateUserFromCache()
+      course = userStore.currentCourse
+      
+      // 如果还是没有，尝试从服务器获取课程列表
+      if (!course || !course.id) {
+        const resp = await listMyCourses()
+        const courses = resp.data || resp || []
+        if (courses.length > 0) {
+          userStore.setCourses(courses)
+          course = courses[0]
+          userStore.setCurrentCourse(course)
+        } else {
+          // 没有课程，静默返回
+          assignments.value = []
+          return
+        }
+      }
+    } catch (error) {
+      console.error('获取课程列表失败:', error)
+      assignments.value = []
+      return
+    }
+  }
+
   loading.value = true
   try {
-    const response = await getAssignments('all', userId.value, 'STUDENT')
-    assignments.value = response.data || []
+    const response = await getAssignments('all', userId.value, course.id, 'STUDENT')
+    const raw = response?.data || response || []
+    assignments.value = Array.isArray(raw?.content) ? raw.content : Array.isArray(raw) ? raw : []
   } catch (error) {
     console.error('获取作业数据失败:', error)
     // 静默失败，不显示错误提示，只在控制台记录

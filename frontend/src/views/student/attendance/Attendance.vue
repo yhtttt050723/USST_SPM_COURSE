@@ -1,9 +1,21 @@
 <template>
   <div class="attendance-page">
+    <el-alert
+      v-if="errorMessage"
+      type="error"
+      :closable="false"
+      show-icon
+      class="mb12"
+      :title="errorMessage"
+    />
     <el-row class="stu-attendance-header">
-
-      <el-col class="time" :span="12">点名时间</el-col>
-      <el-col class="state" :span="6">出勤状态</el-col>
+      <el-col class="left" :span="18">
+        <el-row class="left-header">
+          <el-col class="time" :span="6">签到时间</el-col>
+          <el-col class="null" :span="12"></el-col>
+          <el-col class="state" :span="6">签到状态</el-col>
+        </el-row>
+      </el-col>
       <el-col class="component" :span="6"></el-col>
     </el-row>
     <el-row class="body">
@@ -15,8 +27,12 @@
     </div>
     
     <!-- 出勤列表 -->
-    <div v-else class="homework-list">
-      <AttendanceBox />
+    <div v-else class="attendance-list">
+      <AttendanceBox
+        v-for="item in attendanceRecords"
+        :key="item.id"
+        :record="item"
+      />
     </div>
     
     <!-- 空状态 -->
@@ -27,7 +43,7 @@
 
       <!-- 组件区域 -->
       <el-col class="right-body" :span="5">
-        <ComponentBox class="component" />
+        <ComponentBox class="component" @checked="fetchAttendanceRecords" />
       </el-col>
     </el-row>
   </div>
@@ -41,16 +57,27 @@ import AttendanceBox from '@/components/student/attendance/AttendanceBox.vue';
 import ComponentBox from '@/components/student/attendance/ComponentBox.vue';
 const loading = ref(false);
 const attendanceRecords = ref([]);
+const errorMessage = ref('');
 
 // 获取出勤记录
 const fetchAttendanceRecords = async () => {
   loading.value = true;
   try {
-    const response = await getMyAttendance();
-    attendanceRecords.value = response.data || [];
+    const response = await getMyAttendance({ page: 0, size: 50 });
+    const data = response?.data || response;
+    if (data?.content) {
+      attendanceRecords.value = data.content;
+    } else if (Array.isArray(data)) {
+      attendanceRecords.value = data;
+    } else {
+      attendanceRecords.value = [];
+    }
+    errorMessage.value = '';
   } catch (error) {
     console.error('获取出勤记录失败:', error);
-    ElMessage.error('获取出勤记录失败');
+    const msg = error?.message || '获取出勤记录失败';
+    errorMessage.value = msg;
+    ElMessage.error(msg);
     attendanceRecords.value = [];
   } finally {
     loading.value = false;
@@ -68,11 +95,13 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.stu-attendance-header .el-col {
-  margin: 15px 0px;
-  padding: 0px 50px;
+.stu-attendance-header {
+  margin: 15px 0;
 }
 
+.stu-attendance-header .el-col {
+  padding: 0 20px;
+}
 .body {
   margin: 0;
 }
@@ -103,5 +132,10 @@ onMounted(() => {
 }
 .component {
   width: 100%;
+}
+.attendance-list {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 20px 20px 20px;
 }
 </style>

@@ -23,6 +23,14 @@
         required
       />
 
+      <label v-if="mode === 'register'">邀请码 / 课程编码</label>
+      <input
+        v-if="mode === 'register'"
+        v-model="form.inviteCode"
+        placeholder="请输入教师提供的邀请码"
+        required
+      />
+
       <label>密码</label>
       <input
         v-model="form.password"
@@ -47,15 +55,17 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { login, register } from '@/api/auth'
-import { useUserStore } from '@/stores/userStore'
+import { useUserStore } from '@/stores/useUserStore'
 
 const router = useRouter()
 const { setUser } = useUserStore()
 const form = reactive({
   studentNo: '',
   name: '',
-  password: ''
+  password: '',
+  inviteCode: ''
 })
 const mode = ref('login')
 const loading = ref(false)
@@ -74,33 +84,106 @@ const switchMode = (nextMode) => {
 }
 
 const handleSubmit = async () => {
-  resetNotice()
+  // 清除所有消息
+  message.value = ''
+  error.value = ''
   loading.value = true
+  
   try {
     if (mode.value === 'login') {
-      const { data } = await login({
+      const response = await login({
         studentNo: form.studentNo,
         password: form.password
       })
-      message.value = `登录成功：${data.name} (${data.studentNo})`
-      setUser(data)
-      router.push('/main')
+      
+      // 响应拦截器已经处理，直接使用response（已经是LoginResponse对象）
+      const userData = response
+      
+      // 验证响应数据
+      if (!userData) {
+        throw new Error('登录响应数据格式错误：响应为空')
+      }
+      
+      if (!userData.studentNo) {
+        throw new Error('登录响应数据格式错误：缺少学号')
+      }
+      
+      // 确保token存在
+      if (!userData.token) {
+        throw new Error('登录成功，但未获取到token，请检查后端响应')
+      }
+      
+      console.log('登录成功，Token已获取:', userData.token.substring(0, 20) + '...')
+      console.log('用户信息:', { id: userData.id, studentNo: userData.studentNo, name: userData.name, role: userData.role })
+      
+      // 保存用户信息（必须在跳转前保存）
+      setUser(userData)
+      console.log('用户信息已保存到sessionStorage')
+      
+      // 不设置成功消息，直接跳转（避免消息闪烁）
+      // message.value = `登录成功：${userData.name} (${userData.studentNo})`
+      
+      // 立即跳转
+      try {
+        await router.push('/main')
+        console.log('页面跳转成功')
+      } catch (routerError) {
+        console.error('页面跳转失败:', routerError)
+        // 如果跳转失败，显示成功消息
+        message.value = `登录成功：${userData.name} (${userData.studentNo})`
+      }
+      
     } else {
-      const { data } = await register({
+      const response = await register({
         studentNo: form.studentNo,
         name: form.name,
-        password: form.password
+        password: form.password,
+        inviteCode: form.inviteCode
       })
-      message.value = `注册成功：${data.name} (${data.studentNo})`
+      
+      // 响应拦截器已经处理，直接使用response
+      const userData = response
+      
+      if (!userData || !userData.studentNo) {
+        throw new Error('注册响应数据格式错误')
+      }
+      
+      // 设置成功消息
+      message.value = `注册成功：${userData.name} (${userData.studentNo})，请登录`
+      
+      // 切换到登录模式
       mode.value = 'login'
       form.name = ''
+      form.password = ''
+      form.inviteCode = ''
     }
   } catch (err) {
-    error.value =
-      err?.response?.data?.message ||
-      err?.response?.data?.error ||
-      err.message ||
-      '操作失败'
+    // 登录/注册失败，只显示错误消息
+    console.error('登录/注册失败，错误详情:', {
+      message: err?.message,
+      response: err?.response,
+      status: err?.response?.status,
+      data: err?.response?.data
+    })
+    
+    // 提取错误消息
+    let errorMsg = '操作失败'
+    
+    if (err?.response) {
+      // HTTP错误响应
+      const data = err.response.data
+      // Spring Boot错误格式：{timestamp, status, error, message, path}
+      errorMsg = data?.message || data?.error || `请求失败 (${err.response.status})`
+    } else if (err?.message) {
+      // 其他错误（包括我们抛出的错误）
+      errorMsg = err.message
+    }
+    
+    // 设置错误消息（响应拦截器已经对登录/注册接口禁用了ElMessage）
+    error.value = errorMsg
+    
+    // 确保成功消息被清除
+    message.value = ''
   } finally {
     loading.value = false
   }
